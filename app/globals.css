@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", sans-serif;
+  --background: 40 20% 99%;
+  --foreground: 225 14% 12%;
+  --muted: 36 10% 93%;
+  --muted-foreground: 222 7% 48%;
+  --border: 30 8% 84%;
+  --surface: 38 12% 96%;
+  --text-tertiary: 220 5% 60%;
+}
+
+* {
+  box-sizing: border-box;
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: "Noto Sans SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  color: #0d0d0d !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.press-scale {
+  transform: translateZ(0);
+}
+
+.press-scale:active {
+  transform: scale(0.98);
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-33.333%);
+  }
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 24px -8px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(24px);
+}
+
+.comparison-grid {
+  background-image:
+    linear-gradient(rgba(16, 24, 39, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 24, 39, 0.045) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+.studio-input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 16px;
+  border: 1px solid #ded6ca;
+  background: #f6f5f3;
+  padding: 0 14px;
+  color: #0d0d0d;
+  font-size: 16px;
+  font-weight: 400;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.studio-input:focus {
+  border-color: rgba(16, 24, 39, 0.42);
+  box-shadow: 0 0 0 4px rgba(16, 24, 39, 0.06);
+}
+
+.studio-textarea-tall {
+  min-height: 168px;
+}
+
+.studio-tool-btn {
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid #ded8cd;
+  background: #fffdf9;
+  padding: 0 14px;
+  color: #596170;
+  font-size: 12px;
+  font-weight: 800;
+  transition: color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.studio-tool-btn:hover {
+  border-color: rgba(16, 24, 39, 0.2);
+  color: #101827;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 767px) {
+  header.sticky > div {
+    height: auto !important;
+    min-height: 64px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 10px;
+  }
+
+  header.sticky nav.hidden {
+    order: 3;
+    display: flex !important;
+    width: 100%;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  header.sticky nav.hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  header.sticky nav.hidden a {
+    flex: 0 0 auto;
+  }
+}
