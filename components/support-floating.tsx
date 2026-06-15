@@ -2,7 +2,6 @@
 
 import { useAuthToken } from "@/components/auth-state";
 import { Check, Headphones, ImagePlus, MessageCircle, Send, X } from "lucide-react";
-import { usePathname } from "next/navigation";
 import type { PointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -60,7 +59,6 @@ function fileToDataUrl(file: File) {
 
 export function SupportFloating() {
   const token = useAuthToken();
-  const pathname = usePathname();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const dragRef = useRef<{ pointerId: number; startY: number; startTop: number; moved: boolean } | null>(null);
   const ignoreClickRef = useRef(false);
@@ -75,7 +73,6 @@ export function SupportFloating() {
   const [notice, setNotice] = useState("");
   const qrCode = resolveMediaUrl(supportSettings.qr_code || "") || fallbackQrCode;
   const serviceTime = (supportSettings.service_time || "9:00-22:00").trim() || "9:00-22:00";
-  const hiddenOnPage = pathname === "/pricing";
   const menuBelow = floatTop !== null && floatTop < 190;
 
   useEffect(() => {
@@ -210,10 +207,6 @@ export function SupportFloating() {
       setSubmitting(false);
     }
   };
-
-  if (hiddenOnPage) {
-    return null;
-  }
 
   return (
     <>

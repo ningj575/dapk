@@ -12,7 +12,6 @@ import {
   QrCode,
   Rocket,
   Sparkles,
-  WalletCards,
   WandSparkles,
   X,
   Zap
@@ -449,14 +448,6 @@ function PricingContent() {
           </Link>
         </div>
       </section>
-
-      <button
-        type="button"
-        className="fixed bottom-6 right-6 flex h-12 w-12 items-center justify-center rounded-full border border-[#e5ded2] bg-white text-[#596170] shadow-[0_18px_45px_-24px_rgba(16,24,39,0.45)]"
-        aria-label="在线客服"
-      >
-        <WalletCards className="h-5 w-5" />
-      </button>
 
       <PaymentDialog
         item={selectedPackage}
