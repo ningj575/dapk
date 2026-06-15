@@ -427,7 +427,7 @@ function UniversalImageContent() {
               data-testid="universal-prompt"
               className="min-h-[86px] w-full resize-none border-0 bg-transparent px-0 pb-3 pt-4 text-base font-normal leading-7 text-[#0d0d0d] outline-none placeholder:text-[#9aa1ad]"
               value={prompt}
-              placeholder="输入要直接发给模型的提示词，例如：把这张陶瓷杯生成高级电商主图，白色背景，柔和光影，突出釉面质感..."
+              placeholder="输入提示词，例如：把这张陶瓷杯生成高级电商主图，白色背景，柔和光影，突出釉面质感..."
               onChange={(event) => setPrompt(event.target.value)}
               onPaste={onInputPaste}
             />

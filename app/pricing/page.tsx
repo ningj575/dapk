@@ -161,6 +161,7 @@ function PaymentDialog({
   method,
   methods,
   paying,
+  redirecting,
   onClose,
   onMethodChange,
   onConfirm
@@ -169,6 +170,7 @@ function PaymentDialog({
   method: PaymentMethod;
   methods: PaymentMethodInfo[];
   paying: boolean;
+  redirecting: boolean;
   onClose: () => void;
   onMethodChange: (method: PaymentMethod) => void;
   onConfirm: () => void;
@@ -194,6 +196,7 @@ function PaymentDialog({
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-full text-[#697080] transition hover:bg-[#eceff2] hover:text-[#101827]"
             aria-label="关闭"
+            disabled={redirecting}
             onClick={onClose}
           >
             <X className="h-5 w-5" />
@@ -210,6 +213,7 @@ function PaymentDialog({
                 type="button"
                 data-testid={`payment-${payMethod.key}`}
                 className="flex h-[68px] w-full items-center gap-4 rounded-[7px] border border-[#e1e5e8] bg-[#f8fafb] px-4 text-left transition hover:border-[#cfd5db] hover:bg-white"
+                disabled={redirecting}
                 onClick={() => onMethodChange(payMethod.key)}
               >
                 <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${selected ? "border-[#101827]" : "border-[#e6eaee]"}`}>
@@ -230,6 +234,7 @@ function PaymentDialog({
             type="button"
             data-testid="payment-cancel"
             className="h-10 rounded-[7px] border border-[#e1e5e8] bg-white text-sm font-extrabold text-[#374151] shadow-sm transition hover:bg-[#f3f4f6]"
+            disabled={redirecting}
             onClick={onClose}
           >
             取消
@@ -238,12 +243,19 @@ function PaymentDialog({
             type="button"
             data-testid="payment-confirm"
             className="h-10 rounded-[7px] bg-[#101827] text-sm font-extrabold text-white shadow-sm transition hover:bg-[#2b3344] disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={paying}
+            disabled={paying || redirecting}
             onClick={onConfirm}
           >
-            {paying ? "支付中..." : "确认支付"}
+            {redirecting ? "正在跳转..." : paying ? "支付中..." : "确认支付"}
           </button>
         </div>
+
+        {redirecting && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm font-bold text-[#697080]">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#d6dbe1] border-t-[#101827]" />
+            正在打开支付宝支付页面，请稍候
+          </div>
+        )}
       </section>
     </div>
   );
@@ -256,6 +268,7 @@ function PricingContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [payingKey, setPayingKey] = useState("");
+  const [paymentRedirecting, setPaymentRedirecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wechat");
 
@@ -303,9 +316,11 @@ function PricingContent() {
   }
 
   async function confirmPayment() {
-    if (!token || !selectedPackage || payingKey) return;
+    if (!token || !selectedPackage || payingKey || paymentRedirecting) return;
     setPayingKey(selectedPackage.key);
+    setPaymentRedirecting(false);
     setError("");
+    let redirectStarted = false;
     try {
       const response = await fetch(`${apiBase}/api/packages/purchase`, {
         method: "POST",
@@ -320,6 +335,8 @@ function PricingContent() {
       });
       const result = await readApi<PackagePayload>(response);
       if (result.data.payment?.pay_url) {
+        redirectStarted = true;
+        setPaymentRedirecting(true);
         window.location.href = result.data.payment.pay_url;
         return;
       }
@@ -331,8 +348,11 @@ function PricingContent() {
       setSelectedPackage(null);
     } catch (event) {
       setError(event instanceof Error ? event.message : "充值失败");
+      setPaymentRedirecting(false);
     } finally {
-      setPayingKey("");
+      if (!redirectStarted) {
+        setPayingKey("");
+      }
     }
   }
 
@@ -443,7 +463,10 @@ function PricingContent() {
         method={paymentMethod}
         methods={paymentMethods}
         paying={Boolean(payingKey)}
-        onClose={() => setSelectedPackage(null)}
+        redirecting={paymentRedirecting}
+        onClose={() => {
+          if (!paymentRedirecting) setSelectedPackage(null);
+        }}
         onMethodChange={setPaymentMethod}
         onConfirm={() => void confirmPayment()}
       />

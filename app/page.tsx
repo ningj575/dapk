@@ -192,7 +192,7 @@ export default function Home() {
           <div className="relative mx-auto w-full max-w-[1280px] px-5 sm:px-8">
             <div className="flex flex-col items-center text-center">
               <h1 className="max-w-[1100px] font-display text-[clamp(3.25rem,7vw,5.5rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#101827]">
-                一键上传 即刻惊艳
+                一键上传 高级出圈
               </h1>
               <p className="mt-7 max-w-[580px] text-base leading-8 text-[#69707f] sm:text-lg sm:leading-9">
                 GPT Image 2 + Nano Banana 2 双引擎驱动。深耕电商主图、详情页制作，上传即出稿，省去外包开销与漫长定稿周期。
@@ -243,15 +243,8 @@ export default function Home() {
       </main>
 
       <footer className="border-t border-[#e5ded2] bg-[#faf9f7] px-5 py-8 sm:px-8">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-4 text-sm text-[#777d8a] sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-display text-base font-extrabold text-[#101827]">达客</span>
-            <span className="text-xs font-medium text-text-tertiary">AI</span>
-          </div>
-          <div className="flex gap-5">
-            <button className="hover:text-[#101827]" type="button">服务条款</button>
-            <button className="hover:text-[#101827]" type="button">隐私政策</button>
-          </div>
+        <div className="mx-auto flex max-w-[1280px] items-center justify-center text-sm text-[#777d8a]">
+          © 2026 达客 AI. All rights reserved.
         </div>
       </footer>
     </div>

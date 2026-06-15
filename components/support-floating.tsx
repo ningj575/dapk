@@ -2,10 +2,12 @@
 
 import { useAuthToken } from "@/components/auth-state";
 import { Check, Headphones, ImagePlus, MessageCircle, Send, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import type { PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type ApiResponse<T> = { code: number; message: string; data: T };
 type SupportMode = "wechat" | "feedback" | null;
+type SupportSettings = { qr_code?: string; service_time?: string };
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 const maxImages = 3;
@@ -29,6 +31,17 @@ function makeQrCode() {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function resolveMediaUrl(src: string) {
+  const value = src.trim();
+  if (!value) return "";
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+  return `${apiBase}${value.startsWith("/") ? value : `/${value}`}`;
+}
+
 async function readApi<T>(response: Response): Promise<ApiResponse<T>> {
   const payload = (await response.json()) as ApiResponse<T>;
   if (!response.ok || payload.code !== 0) throw new Error(payload.message || "提交失败");
@@ -47,13 +60,102 @@ function fileToDataUrl(file: File) {
 export function SupportFloating() {
   const token = useAuthToken();
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const qrCode = useMemo(() => makeQrCode(), []);
+  const dragRef = useRef<{ pointerId: number; startY: number; startTop: number; moved: boolean } | null>(null);
+  const ignoreClickRef = useRef(false);
+  const fallbackQrCode = useMemo(() => makeQrCode(), []);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<SupportMode>(null);
+  const [supportSettings, setSupportSettings] = useState<SupportSettings>({});
+  const [floatTop, setFloatTop] = useState<number | null>(null);
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
+  const qrCode = resolveMediaUrl(supportSettings.qr_code || "") || fallbackQrCode;
+  const serviceTime = (supportSettings.service_time || "9:00-22:00").trim() || "9:00-22:00";
+  const menuBelow = floatTop !== null && floatTop < 190;
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${apiBase}/api/support-settings`)
+      .then(readApi<SupportSettings>)
+      .then((payload) => {
+        if (active) setSupportSettings(payload.data || {});
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const storageKey = "dake_support_float_top";
+    const initPosition = () => {
+      const minTop = 72;
+      const maxTop = Math.max(minTop, window.innerHeight - 88);
+      const saved = Number(window.localStorage.getItem(storageKey));
+      const defaultTop = window.innerWidth < 640 ? window.innerHeight - 196 : window.innerHeight - 96;
+      setFloatTop(clamp(Number.isFinite(saved) ? saved : defaultTop, minTop, maxTop));
+    };
+    initPosition();
+
+    const handleResize = () => {
+      setFloatTop((current) => {
+        const minTop = 72;
+        const maxTop = Math.max(minTop, window.innerHeight - 88);
+        const next = clamp(current ?? window.innerHeight - 96, minTop, maxTop);
+        window.localStorage.setItem(storageKey, String(Math.round(next)));
+        return next;
+      });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const startDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    if (floatTop === null) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startTop: floatTop,
+      moved: false
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const deltaY = event.clientY - drag.startY;
+    if (Math.abs(deltaY) > 3) {
+      drag.moved = true;
+    }
+    const minTop = 72;
+    const maxTop = Math.max(minTop, window.innerHeight - 88);
+    setFloatTop(clamp(drag.startTop + deltaY, minTop, maxTop));
+  };
+
+  const endDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    if (drag.moved) {
+      ignoreClickRef.current = true;
+      setTimeout(() => {
+        ignoreClickRef.current = false;
+      }, 0);
+    }
+    setFloatTop((current) => {
+      const next = current ?? drag.startTop;
+      window.localStorage.setItem("dake_support_float_top", String(Math.round(next)));
+      return next;
+    });
+  };
+
+  const toggleSupport = () => {
+    if (ignoreClickRef.current) return;
+    setOpen((value) => !value);
+  };
 
   const resetFeedback = () => {
     setDescription("");
@@ -108,9 +210,9 @@ export function SupportFloating() {
 
   return (
     <>
-      <div className="fixed bottom-36 right-5 z-[80] flex flex-col items-end gap-3 sm:bottom-6">
+      <div className="fixed right-5 z-[80]" style={{ top: floatTop ?? undefined, bottom: floatTop === null ? 144 : "auto" }}>
         {open && (
-          <div className="w-40 overflow-hidden rounded-2xl border border-[#e2e7ec] bg-white p-2 shadow-[0_18px_45px_-24px_rgba(16,24,39,0.55)]">
+          <div className={`absolute right-0 w-40 overflow-hidden rounded-2xl border border-[#e2e7ec] bg-white p-2 shadow-[0_18px_45px_-24px_rgba(16,24,39,0.55)] ${menuBelow ? "top-[68px]" : "bottom-[68px]"}`}>
             <button data-testid="support-contact" className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-[#101827] transition hover:bg-[#f1f4f7]" type="button" onClick={() => setMode("wechat")}>
               <MessageCircle className="h-4 w-4" />
               联系客服
@@ -121,7 +223,17 @@ export function SupportFloating() {
             </button>
           </div>
         )}
-        <button data-testid="support-trigger" className="flex h-14 w-14 items-center justify-center rounded-full bg-[#101827] text-white shadow-[0_16px_32px_-16px_rgba(16,24,39,0.9)] transition hover:-translate-y-0.5 hover:bg-black" type="button" onClick={() => setOpen((value) => !value)} aria-label="客服">
+        <button
+          data-testid="support-trigger"
+          className="flex h-14 w-14 touch-none items-center justify-center rounded-full bg-[#101827] text-white shadow-[0_16px_32px_-16px_rgba(16,24,39,0.9)] transition hover:-translate-y-0.5 hover:bg-black"
+          type="button"
+          onPointerDown={startDrag}
+          onPointerMove={moveDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onClick={toggleSupport}
+          aria-label="客服"
+        >
           <Headphones className="h-6 w-6" />
         </button>
       </div>
@@ -143,7 +255,7 @@ export function SupportFloating() {
               <MessageCircle className="h-5 w-5" />
               打开微信客服
             </a>
-            <p className="mt-5 text-sm font-medium text-[#8a94a3]">客服时间：9:00-22:00</p>
+            <p className="mt-5 text-sm font-medium text-[#8a94a3]">客服时间：{serviceTime}</p>
           </div>
         </div>
       )}
