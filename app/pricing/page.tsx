@@ -36,6 +36,13 @@ type PackagePayload = {
   user: DakeUser;
   has_recharged: boolean;
   packages: CreditPackage[];
+  payment_methods: PaymentMethodInfo[];
+  payment?: {
+    method: PaymentMethod;
+    mode: "pc" | "wap";
+    order_no: string;
+    pay_url: string;
+  };
 };
 
 type ApiResponse<T> = {
@@ -45,6 +52,12 @@ type ApiResponse<T> = {
 };
 
 type PaymentMethod = "wechat" | "alipay";
+
+type PaymentMethodInfo = {
+  key: PaymentMethod;
+  name: string;
+  desc: string;
+};
 
 const navItems = [
   ["万能生图", "/image-editor"],
@@ -146,6 +159,7 @@ function AppHeader() {
 function PaymentDialog({
   item,
   method,
+  methods,
   paying,
   onClose,
   onMethodChange,
@@ -153,6 +167,7 @@ function PaymentDialog({
 }: {
   item: CreditPackage | null;
   method: PaymentMethod;
+  methods: PaymentMethodInfo[];
   paying: boolean;
   onClose: () => void;
   onMethodChange: (method: PaymentMethod) => void;
@@ -160,22 +175,10 @@ function PaymentDialog({
 }) {
   if (!item) return null;
 
-  const methods = [
-    {
-      key: "wechat" as const,
-      name: "微信支付",
-      desc: "扫码支付，安全便捷",
-      icon: QrCode,
-      iconClass: "text-[#06b48a]"
-    },
-    {
-      key: "alipay" as const,
-      name: "支付宝",
-      desc: "扫码支付，安全便捷",
-      icon: CreditCard,
-      iconClass: "text-[#176bff]"
-    }
-  ];
+  const methodIcons = {
+    wechat: { icon: QrCode, iconClass: "text-[#06b48a]" },
+    alipay: { icon: CreditCard, iconClass: "text-[#176bff]" }
+  };
 
   return (
     <div data-testid="payment-dialog" className="fixed inset-0 z-[90] flex items-center justify-center bg-[#101827]/35 px-4 backdrop-blur-sm">
@@ -199,7 +202,7 @@ function PaymentDialog({
 
         <div className="mt-5 space-y-3">
           {methods.map((payMethod) => {
-            const Icon = payMethod.icon;
+            const Icon = methodIcons[payMethod.key].icon;
             const selected = method === payMethod.key;
             return (
               <button
@@ -212,7 +215,7 @@ function PaymentDialog({
                 <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${selected ? "border-[#101827]" : "border-[#e6eaee]"}`}>
                   {selected && <span className="h-2 w-2 rounded-full bg-[#101827]" />}
                 </span>
-                <Icon className={`h-5 w-5 ${payMethod.iconClass}`} />
+                <Icon className={`h-5 w-5 ${methodIcons[payMethod.key].iconClass}`} />
                 <span>
                   <span className="block text-base font-extrabold text-[#101827]">{payMethod.name}</span>
                   <span className="mt-0.5 block text-sm font-semibold text-[#697080]">{payMethod.desc}</span>
@@ -258,6 +261,7 @@ function PricingContent() {
 
   const user = payload?.user || storedUser;
   const balance = typeof user?.credits === "number" ? user.credits : 0;
+  const paymentMethods = useMemo(() => payload?.payment_methods || [], [payload]);
 
   const fetchPackages = useCallback(async () => {
     if (!token) return;
@@ -288,7 +292,12 @@ function PricingContent() {
   const packages = useMemo(() => payload?.packages || [], [payload]);
 
   function openPaymentDialog(item: CreditPackage) {
-    setPaymentMethod("wechat");
+    const firstMethod = paymentMethods[0]?.key;
+    if (!firstMethod) {
+      setError("暂无可用支付方式，请联系管理员");
+      return;
+    }
+    setPaymentMethod(firstMethod);
     setSelectedPackage(item);
     setError("");
   }
@@ -310,9 +319,15 @@ function PricingContent() {
         })
       });
       const result = await readApi<PackagePayload>(response);
+      if (result.data.payment?.pay_url) {
+        window.location.href = result.data.payment.pay_url;
+        return;
+      }
       setPayload(result.data);
-      window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
-      notifyAuthChanged();
+      if (result.data.user) {
+        window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
+        notifyAuthChanged();
+      }
       setSelectedPackage(null);
     } catch (event) {
       setError(event instanceof Error ? event.message : "充值失败");
@@ -426,6 +441,7 @@ function PricingContent() {
       <PaymentDialog
         item={selectedPackage}
         method={paymentMethod}
+        methods={paymentMethods}
         paying={Boolean(payingKey)}
         onClose={() => setSelectedPackage(null)}
         onMethodChange={setPaymentMethod}
