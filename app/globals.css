@@ -115,6 +115,7 @@ a {
   color: #596170;
   font-size: 12px;
   font-weight: 800;
+  white-space: nowrap;
   transition: color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 

@@ -233,13 +233,13 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
     () =>
       mode === "genesis"
         ? {
-            badge: "主图生成 2.0",
-            title: "主图生成 2.0",
+            badge: "电商主图规划",
+            title: "主图生成",
             subtitle: "AI 智能分析产品风格与文案，一键生成专业主图"
           }
         : {
             badge: "详情页规划",
-            title: "详情图生成2.0",
+            title: "详情图生成",
             subtitle: "上传产品实拍图，AI 自动理解产品结构与卖点，快速生成多视角、多场景的电商详情图集。 无需设计基础，几分钟内完成从单图到完整详情页的视觉升级。"
           },
     [mode]
@@ -885,15 +885,15 @@ function ResultPanel({ mode, phase, detailMode, quantity, ratio, model, images }
   return (
     <aside className="lg:sticky lg:top-24 lg:self-start">
       <section className="rounded-[30px] border border-[#ded8cd] bg-white p-6 shadow-[0_1px_2px_rgba(16,24,39,0.03)]">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <div>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <h2 className="text-xl font-extrabold">{mode === "genesis" ? "实时预览" : detailMode === "connected" ? "一键长图结果区" : "详情页结果"}</h2>
             <p className="mt-1 text-sm text-[#697080]">{mode === "genesis" ? "先上传产品图并填写简报，再开始生图。" : "生成后的详情页会显示在这里。"}</p>
           </div>
           {mode !== "genesis" && (
-            <div className="flex gap-2">
-              <button className="studio-tool-btn disabled:cursor-not-allowed disabled:opacity-45" type="button" disabled={images.length === 0} onClick={() => setDetailPreviewOpen(true)}><Images className="h-4 w-4" />拼接预览</button>
-              <button className="studio-tool-btn disabled:cursor-not-allowed disabled:opacity-45" type="button" disabled={images.length === 0} onClick={downloadAllImages}><Download className="h-4 w-4" />下载</button>
+            <div className="flex w-full gap-2 sm:w-auto sm:shrink-0">
+              <button className="studio-tool-btn min-w-[112px] flex-1 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none" type="button" disabled={images.length === 0} onClick={() => setDetailPreviewOpen(true)}><Images className="h-4 w-4" />拼接预览</button>
+              <button className="studio-tool-btn min-w-[92px] flex-1 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none" type="button" disabled={images.length === 0} onClick={downloadAllImages}><Download className="h-4 w-4" />下载</button>
             </div>
           )}
         </div>
