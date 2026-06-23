@@ -60,7 +60,7 @@ const showcases = [
     afterLabel: "达客 设计稿",
     beforeSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-before.jpg",
     afterSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-after.png",
-    aspectRatio: "3 / 4",
+    aspectRatio: "1078 / 719",
     href: "/image-editor"
   },
   {
@@ -77,7 +77,7 @@ const showcases = [
     afterLabel: "达客 效果",
     beforeSrc: "https://shopix-ai.company/images/showcase/hero-left.png",
     afterSrc: "https://shopix-ai.company/images/showcase/hero-right.png",
-    aspectRatio: "3 / 4",
+    aspectRatio: "1078 / 719",
     href: "/studio-genesis"
   },
   {
@@ -94,7 +94,7 @@ const showcases = [
     afterLabel: "达客 效果",
     beforeSrc: "https://shopix-ai.company/images/showcase/detail-before.jpg",
     afterSrc: "https://shopix-ai.company/images/showcase/detail-right.png",
-    aspectRatio: "3 / 4",
+    aspectRatio: "1078 / 958",
     href: "/ecom-studio"
   }
 ];
@@ -164,7 +164,7 @@ export default function Home() {
       ...showcase,
       beforeSrc: showcaseImages ? resolveMediaUrl(remote?.before_src) : "",
       afterSrc: showcaseImages ? resolveMediaUrl(remote?.after_src) : "",
-      aspectRatio: "3 / 4"
+      aspectRatio: remote?.aspect_ratio || showcase.aspectRatio
     };
   });
 
