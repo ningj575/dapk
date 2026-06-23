@@ -115,7 +115,7 @@ function resolveMediaUrl(src?: string) {
 export default function Home() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [redirectTo, setRedirectTo] = useState("/image-editor");
-  const [showcaseImages, setShowcaseImages] = useState<Record<string, HomeShowcaseImage> | null>(null);
+  const [showcaseImages, setShowcaseImages] = useState<Record<string, HomeShowcaseImage>>({});
   const router = useRouter();
   const token = useAuthToken();
   const ready = Boolean(useClientReady());
@@ -150,21 +150,25 @@ export default function Home() {
         }, {});
         setShowcaseImages(next);
       })
-      .catch(() => {
-        if (!cancelled) setShowcaseImages({});
-      });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
 
   const renderedShowcases = showcases.map((showcase) => {
-    const remote = showcaseImages?.[showcase.showcaseKey];
+    const remote = showcaseImages[showcase.showcaseKey];
     return {
       ...showcase,
+<<<<<<< HEAD
       beforeSrc: showcaseImages ? resolveMediaUrl(remote?.before_src) : "",
       afterSrc: showcaseImages ? resolveMediaUrl(remote?.after_src) : "",
       aspectRatio: "3 / 4"
+=======
+      beforeSrc: resolveMediaUrl(remote?.before_src) || showcase.beforeSrc,
+      afterSrc: resolveMediaUrl(remote?.after_src) || showcase.afterSrc,
+      aspectRatio: remote?.aspect_ratio || showcase.aspectRatio
+>>>>>>> parent of 108886c... 代码优化
     };
   });
 
@@ -328,20 +332,12 @@ function Showcase({ index, title, subtitle, points, beforeLabel, afterLabel, bef
           <div className="overflow-hidden rounded-[22px] border border-[#e8e2d8] bg-white shadow-[0_1px_2px_rgba(16,24,39,0.04),0_22px_68px_-42px_rgba(16,24,39,0.36)] transition duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_2px_6px_rgba(16,24,39,0.05),0_30px_80px_-44px_rgba(16,24,39,0.42)]">
             <div className="relative grid grid-cols-2 overflow-hidden bg-[#f6f5f3]" style={{ aspectRatio }}>
               <div className="relative overflow-hidden border-r border-[#e7e1d7] bg-white">
-                {beforeSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img alt={`${title} ${beforeLabel}`} className="h-full w-full object-cover" loading="eager" src={beforeSrc} />
-                ) : (
-                  <div className="h-full w-full bg-[#f2f0eb]" aria-label={`${title} ${beforeLabel}加载中`} />
-                )}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt={`${title} ${beforeLabel}`} className="h-full w-full object-cover" loading="eager" src={beforeSrc} />
               </div>
               <div className="relative overflow-hidden bg-white">
-                {afterSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img alt={`${title} ${afterLabel}`} className="h-full w-full object-cover" loading="eager" src={afterSrc} />
-                ) : (
-                  <div className="h-full w-full bg-[#f2f0eb]" aria-label={`${title} ${afterLabel}加载中`} />
-                )}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt={`${title} ${afterLabel}`} className="h-full w-full object-cover" loading="eager" src={afterSrc} />
               </div>
               <span className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#e7e1d7] bg-white text-[#b7ada2] shadow-[0_6px_18px_rgba(16,24,39,0.12)]">
                 <ArrowRight className="h-3.5 w-3.5" />
