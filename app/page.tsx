@@ -60,7 +60,7 @@ const showcases = [
     afterLabel: "达客 设计稿",
     beforeSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-before.jpg",
     afterSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-after.png",
-    aspectRatio: "1078 / 719",
+    aspectRatio: "3 / 4",
     href: "/image-editor"
   },
   {
@@ -77,7 +77,7 @@ const showcases = [
     afterLabel: "达客 效果",
     beforeSrc: "https://shopix-ai.company/images/showcase/hero-left.png",
     afterSrc: "https://shopix-ai.company/images/showcase/hero-right.png",
-    aspectRatio: "1078 / 719",
+    aspectRatio: "3 / 4",
     href: "/studio-genesis"
   },
   {
@@ -94,7 +94,7 @@ const showcases = [
     afterLabel: "达客 效果",
     beforeSrc: "https://shopix-ai.company/images/showcase/detail-before.jpg",
     afterSrc: "https://shopix-ai.company/images/showcase/detail-right.png",
-    aspectRatio: "1078 / 958",
+    aspectRatio: "3 / 4",
     href: "/ecom-studio"
   }
 ];
@@ -164,7 +164,7 @@ export default function Home() {
       ...showcase,
       beforeSrc: showcaseImages ? resolveMediaUrl(remote?.before_src) : "",
       afterSrc: showcaseImages ? resolveMediaUrl(remote?.after_src) : "",
-      aspectRatio: remote?.aspect_ratio || showcase.aspectRatio
+      aspectRatio: "3 / 4"
     };
   });
 
@@ -324,13 +324,13 @@ function Showcase({ index, title, subtitle, points, beforeLabel, afterLabel, bef
           ))}
         </div>
 
-        <button className="group mx-auto mt-8 block w-full max-w-[1080px] text-left" type="button" onClick={() => onOpen(href)}>
+        <button className="group mx-auto mt-8 block w-full max-w-[620px] text-left" type="button" onClick={() => onOpen(href)}>
           <div className="overflow-hidden rounded-[22px] border border-[#e8e2d8] bg-white shadow-[0_1px_2px_rgba(16,24,39,0.04),0_22px_68px_-42px_rgba(16,24,39,0.36)] transition duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_2px_6px_rgba(16,24,39,0.05),0_30px_80px_-44px_rgba(16,24,39,0.42)]">
             <div className="relative grid grid-cols-2 overflow-hidden bg-[#f6f5f3]" style={{ aspectRatio }}>
               <div className="relative overflow-hidden border-r border-[#e7e1d7] bg-white">
                 {beforeSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img alt={`${title} ${beforeLabel}`} className="h-full w-full object-cover" loading="eager" src={beforeSrc} />
+                  <img alt={`${title} ${beforeLabel}`} className="h-full w-full object-contain" loading="eager" src={beforeSrc} />
                 ) : (
                   <div className="h-full w-full bg-[#f2f0eb]" aria-label={`${title} ${beforeLabel}加载中`} />
                 )}
@@ -338,7 +338,7 @@ function Showcase({ index, title, subtitle, points, beforeLabel, afterLabel, bef
               <div className="relative overflow-hidden bg-white">
                 {afterSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img alt={`${title} ${afterLabel}`} className="h-full w-full object-cover" loading="eager" src={afterSrc} />
+                  <img alt={`${title} ${afterLabel}`} className="h-full w-full object-contain" loading="eager" src={afterSrc} />
                 ) : (
                   <div className="h-full w-full bg-[#f2f0eb]" aria-label={`${title} ${afterLabel}加载中`} />
                 )}
