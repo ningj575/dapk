@@ -204,10 +204,15 @@ function WatermarkRemoverContent() {
     <main className="min-h-screen bg-[#faf9f7] text-[#101827]">
       <AppHeader />
       <section className="mx-auto w-full max-w-[1280px] px-5 py-8 sm:px-8">
-        <div className="mb-7 flex flex-col gap-2">
-          <p className="text-sm font-bold text-[#7a8190]">AI 图片处理</p>
-          <h1 className="text-3xl font-black tracking-tight sm:text-4xl">去水印</h1>
-          <p className="max-w-[680px] text-sm font-semibold leading-7 text-[#697080]">上传带水印图片，AI 会尽量去除图片中的水印、平台标记和半透明覆盖内容，并保留原图主体质感。</p>
+        <div className="mx-auto mb-10 flex max-w-[860px] flex-col items-center text-center">
+          <span className="inline-flex h-9 items-center gap-2 rounded-full border border-[#f2c15d] bg-[#fffaf0] px-4 text-sm font-extrabold text-[#c46a00]">
+            <Sparkles className="h-4 w-4" />
+            AI 去水印
+          </span>
+          <h1 className="mt-6 text-4xl font-black tracking-tight text-[#101827] sm:text-6xl">去水印</h1>
+          <p className="mt-6 max-w-[780px] text-base font-medium leading-8 text-[#5f6674] sm:text-lg">
+            自动识别图片中的各种水印、文字、Logo，智能填充背景，不留痕迹。
+          </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.92fr)]">
