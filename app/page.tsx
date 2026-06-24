@@ -67,8 +67,8 @@ const showcases = [
     ],
     beforeLabel: "带水印原图",
     afterLabel: "去水印结果",
-    beforeSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-before.jpg",
-    afterSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-after.png",
+    beforeSrc: `${API_BASE_URL}/images/showcase/watermark_before.jpg`,
+    afterSrc: `${API_BASE_URL}/images/showcase/watermark_after.jpg`,
     aspectRatio: "3 / 4",
     href: "/watermark-remover"
   },
@@ -84,8 +84,8 @@ const showcases = [
     ],
     beforeLabel: "参考图",
     afterLabel: "达客 设计稿",
-    beforeSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-before.jpg",
-    afterSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-after.png",
+    beforeSrc: `${API_BASE_URL}/images/showcase/universal_before.jpg`,
+    afterSrc: `${API_BASE_URL}/images/showcase/universal_after.jpg`,
     aspectRatio: "1078 / 719",
     href: "/image-editor"
   },
@@ -101,8 +101,8 @@ const showcases = [
     ],
     beforeLabel: "原图",
     afterLabel: "达客 效果",
-    beforeSrc: "https://shopix-ai.company/images/showcase/hero-left.png",
-    afterSrc: "https://shopix-ai.company/images/showcase/hero-right.png",
+    beforeSrc: `${API_BASE_URL}/images/showcase/main_before.jpg`,
+    afterSrc: `${API_BASE_URL}/images/showcase/main_after.jpg`,
     aspectRatio: "1078 / 719",
     href: "/studio-genesis"
   },
@@ -118,8 +118,8 @@ const showcases = [
     ],
     beforeLabel: "原图",
     afterLabel: "达客 效果",
-    beforeSrc: "https://shopix-ai.company/images/showcase/detail-before.jpg",
-    afterSrc: "https://shopix-ai.company/images/showcase/detail-right.png",
+    beforeSrc: `${API_BASE_URL}/images/showcase/detail_before.jpg`,
+    afterSrc: `${API_BASE_URL}/images/showcase/detail_after.jpg`,
     aspectRatio: "1078 / 958",
     href: "/ecom-studio"
   }
