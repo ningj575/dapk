@@ -29,6 +29,13 @@ type RecordCounts = {
   image: number;
   video: number;
 };
+type GenerationRecordsPayload = {
+  records: GenerationRecord[];
+  total: number;
+  page: number;
+  page_size: number;
+  counts: RecordCounts;
+};
 type PreviewImage = {
   images: string[];
   index: number;
@@ -159,21 +166,35 @@ function GenerationRecordsContent() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState<PreviewImage | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [serverCounts, setServerCounts] = useState<RecordCounts>({ all: 0, image: 0, video: 0 });
+  const pageSize = 8;
 
   const fetchRecords = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${apiBase}/api/generations`, { headers: { Authorization: `Bearer ${token}` } });
-      const result = await readApi<{ records: GenerationRecord[] }>(response);
+      const params = new URLSearchParams({
+        page: String(page),
+        page_size: String(pageSize),
+        filter,
+        keyword: query.trim(),
+        exclude_type: "watermark_remover",
+        hide_failed: "1"
+      });
+      const response = await fetch(`${apiBase}/api/generations?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+      const result = await readApi<GenerationRecordsPayload>(response);
       setRecords(result.data.records || []);
+      setTotal(Number(result.data.total || 0));
+      setServerCounts(result.data.counts || { all: 0, image: 0, video: 0 });
     } catch (event) {
       setError(event instanceof Error ? event.message : "生成记录加载失败");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [filter, page, query, token]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void fetchRecords(), 0);
@@ -181,12 +202,6 @@ function GenerationRecordsContent() {
   }, [fetchRecords]);
 
   const visibleRecords = useMemo(() => records.filter((record) => record.type !== "watermark_remover" && !isFailedImageRecord(record)), [records]);
-
-  const counts = useMemo(() => {
-    const image = visibleRecords.filter((item) => recordMedia(item).type === "image").length;
-    const video = visibleRecords.filter((item) => recordMedia(item).type === "video").length;
-    return { all: visibleRecords.length, image, video };
-  }, [visibleRecords]);
 
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -197,6 +212,7 @@ function GenerationRecordsContent() {
       return `${record.title || ""} ${record.prompt || ""} ${record.model || ""}`.toLowerCase().includes(keyword);
     });
   }, [filter, query, visibleRecords]);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const previewSrc = preview?.images[preview.index] || "";
   const movePreview = (step: number) => {
@@ -228,16 +244,16 @@ function GenerationRecordsContent() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-2">
               {filterTabs.map(([key, label, countKey, Icon]) => (
-                <button key={key} className={`flex h-9 items-center gap-2 rounded-xl px-4 text-sm font-bold transition ${filter === key ? "bg-[#101827] text-white shadow-[0_12px_24px_-16px_rgba(16,24,39,0.85)]" : "bg-[#eef2f5] text-[#5f6674] hover:text-[#101827]"}`} type="button" onClick={() => setFilter(key)}>
+                <button key={key} className={`flex h-9 items-center gap-2 rounded-xl px-4 text-sm font-bold transition ${filter === key ? "bg-[#101827] text-white shadow-[0_12px_24px_-16px_rgba(16,24,39,0.85)]" : "bg-[#eef2f5] text-[#5f6674] hover:text-[#101827]"}`} type="button" onClick={() => { setFilter(key); setPage(1); }}>
                   <Icon className="h-4 w-4" />
                   {label}
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${filter === key ? "bg-white/15 text-white" : "bg-white text-[#8a94a3]"}`}>{counts[countKey]}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${filter === key ? "bg-white/15 text-white" : "bg-white text-[#8a94a3]"}`}>{serverCounts[countKey]}</span>
                 </button>
               ))}
             </div>
             <label className="flex h-10 w-full items-center gap-2 rounded-xl border border-[#dfe5ea] bg-white px-3 shadow-sm sm:w-[260px]">
               <Search className="h-4 w-4 text-[#9aa3ad]" />
-              <input className="min-w-0 flex-1 bg-transparent text-base font-normal text-[#0d0d0d] outline-none placeholder:text-[#9aa3ad]" placeholder="搜索描述、模型..." value={query} onChange={(event) => setQuery(event.target.value)} />
+              <input className="min-w-0 flex-1 bg-transparent text-base font-normal text-[#0d0d0d] outline-none placeholder:text-[#9aa3ad]" placeholder="搜索描述、模型..." value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
             </label>
           </div>
 
@@ -272,6 +288,18 @@ function GenerationRecordsContent() {
                   </article>
                 );
               })}
+            </div>
+          )}
+          {!loading && totalPages > 1 && (
+            <div className="mt-7 flex items-center justify-center gap-3 text-sm font-semibold text-[#5f6674]">
+              <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#dfe5ea] bg-white text-[#101827] disabled:cursor-not-allowed disabled:opacity-40" type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} aria-label="上一页">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span>{page} / {totalPages}</span>
+              <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#dfe5ea] bg-white text-[#101827] disabled:cursor-not-allowed disabled:opacity-40" type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} aria-label="下一页">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <span>共 {total} 条</span>
             </div>
           )}
         </section>

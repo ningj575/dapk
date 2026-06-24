@@ -131,7 +131,7 @@ export function LoginDialog({ open, onOpenChange, redirectTo = "/image-editor" }
               <X className="h-4 w-4" />
             </button>
             <Dialog.Title className="relative pr-12 font-display text-[1.7rem] font-extrabold tracking-tight text-[#101827]">
-              {view === "login" ? "邮箱登录 达客" : view === "register" ? "邮箱注册 达客" : "重置密码 达客"}
+              {view === "login" ? "邮箱登录" : view === "register" ? "邮箱注册" : "重置密码"}
             </Dialog.Title>
             <Dialog.Description className="relative mt-2 text-sm leading-6 text-[#6f7480]">
               {view === "login" ? "使用邮箱和密码进入电商生图工作台。" : view === "register" ? "使用邮箱、密码和邮箱验证码完成注册。" : "输入邮箱验证码和新密码，完成密码重置。"}
@@ -282,7 +282,7 @@ export function LoginDialog({ open, onOpenChange, redirectTo = "/image-editor" }
             </form>
 
             <div className="mt-5 rounded-2xl border border-[#e9e1d7] bg-white/65 p-4">
-              {["注册送体验积分", "支持淘宝/天猫/京东/Amazon 模板", "可生成主图、详情图与商品视频"].map((item) => (
+              {["注册送体验积分", "支持淘宝/天猫/京东/Amazon 模板", "可免费去除水印、生成电商主图与详情图"].map((item) => (
                 <div key={item} className="flex items-center gap-2 py-1 text-xs font-medium text-[#666d7c]">
                   <CheckCircle2 className="h-3.5 w-3.5 text-teal-600" />
                   {item}

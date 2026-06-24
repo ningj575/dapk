@@ -28,6 +28,13 @@ type UploadItem = {
   src: string;
 };
 
+type ReferenceUploadPayload = {
+  images: Array<{
+    path: string;
+    url: string;
+  }>;
+};
+
 type ImageTask = {
   id: number;
   task_index: number;
@@ -206,6 +213,7 @@ function UniversalImageContent() {
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [generating, setGenerating] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState("");
   const [previewByMessage, setPreviewByMessage] = useState<Record<number, number>>({});
@@ -261,6 +269,7 @@ function UniversalImageContent() {
 
   async function onFilesChange(files?: FileList | File[] | null) {
     if (!files || files.length === 0) return;
+    if (!token) return;
     const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
     if (imageFiles.length === 0) return;
     const freeSlots = Math.max(0, 10 - uploadItems.length);
@@ -274,17 +283,38 @@ function UniversalImageContent() {
       setError("最多上传 10 张图片，已自动保留前 10 张");
     }
 
-    const nextItems = await Promise.all(
-      selected.map((file, index) =>
-        new Promise<UploadItem>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve({ id: `${Date.now()}-${index}-${file.name}`, src: String(reader.result || "") });
-          reader.readAsDataURL(file);
-        })
-      )
-    );
-    setUploadItems((items) => [...items, ...nextItems]);
-    if (inputRef.current) inputRef.current.value = "";
+    setUploadingImages(true);
+    try {
+      const dataUrls = await Promise.all(
+        selected.map(
+          (file) =>
+            new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result || ""));
+              reader.readAsDataURL(file);
+            })
+        )
+      );
+      const response = await fetch(`${apiBase}/api/reference-images`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ images: dataUrls })
+      });
+      const result = await readApi<ReferenceUploadPayload>(response);
+      const nextItems = (result.data.images || []).map((item, index) => ({
+        id: `${Date.now()}-${index}`,
+        src: mediaUrl(item.url || item.path)
+      }));
+      setUploadItems((items) => [...items, ...nextItems]);
+    } catch (event) {
+      setError(event instanceof Error ? event.message : "图片上传失败");
+    } finally {
+      setUploadingImages(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
   }
 
   function onInputDrop(event: DragEvent<HTMLDivElement>) {
@@ -508,9 +538,10 @@ function UniversalImageContent() {
               type="button"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-dashed border-[#d8d1c6] text-[#596170] transition hover:bg-[#f6f5f3] hover:text-[#101827]"
               aria-label="上传图片"
+              disabled={uploadingImages}
               onClick={() => inputRef.current?.click()}
             >
-              <Plus className="h-5 w-5" />
+              {uploadingImages ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
             </button>
             </div>
             <textarea
@@ -533,14 +564,14 @@ function UniversalImageContent() {
               type="button"
               data-testid="universal-generate"
               className={`ml-auto inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-extrabold transition disabled:cursor-not-allowed sm:h-10 sm:gap-2 sm:px-5 sm:text-sm ${
-                prompt.trim() && !generating
+                prompt.trim() && !generating && !uploadingImages
                   ? "bg-[#101827] text-white shadow-[0_12px_28px_-20px_rgba(16,24,39,0.85)] hover:bg-[#2b3344]"
                   : "bg-[#ebe9e5] text-[#596170] opacity-80"
               }`}
-              disabled={!prompt.trim() || generating}
+              disabled={!prompt.trim() || generating || uploadingImages}
               onClick={() => void generate()}
             >
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {generating || uploadingImages ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               一键生成{cost}积分
             </button>
           </div>
