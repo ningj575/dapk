@@ -45,6 +45,7 @@ const navItems = [
   ["万能生图", "/image-editor"],
   ["主图", "/studio-genesis"],
   ["详情图", "/ecom-studio"],
+  ["去水印", "/watermark-remover"],
   ["套餐", "/pricing"]
 ];
 
@@ -126,6 +127,7 @@ function typeLabel(type: string) {
   if (type === "main_image") return "主图";
   if (type === "detail_image") return "详情图";
   if (type === "universal_image") return "万能生图";
+  if (type === "watermark_remover") return "去水印";
   return "图片";
 }
 
@@ -135,6 +137,7 @@ function displayRecordTitle(record: GenerationRecord) {
     "Main image generation": "主图生成",
     "Detail image generation": "详情图生成",
     "Universal image generation": "万能生图",
+    "Watermark removal": "去水印",
     "Video generation": "视频生成",
     "AI generation": "AI 生成"
   };
