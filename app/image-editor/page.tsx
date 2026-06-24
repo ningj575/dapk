@@ -28,12 +28,34 @@ type UploadItem = {
   src: string;
 };
 
+type ImageTask = {
+  id: number;
+  task_index: number;
+  task_id: string;
+  status: string;
+  image_url?: string;
+  error_message?: string;
+};
+
 type UniversalImagePayload = {
   id: number;
+  status?: string;
+  done?: boolean;
+  images?: string[];
+  tasks?: ImageTask[];
+  cost_credits?: number;
+  user?: DakeUser;
+};
+
+type ImageTaskStatusPayload = {
+  id: number;
+  status: string;
+  done: boolean;
   images: string[];
-  cost_credits: number;
+  tasks: ImageTask[];
   user: DakeUser;
 };
+
 type GenerationRecord = {
   id: number | string;
   type: string;
@@ -277,6 +299,61 @@ function UniversalImageContent() {
     }
   }
 
+  async function pollUniversalImage(recordId: number, loadingMessageId: number, startedAt: number) {
+    const maxAttempts = 180;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      if (attempt > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, 3000));
+      }
+
+      const response = await fetch(`${apiBase}/api/image-task-status?id=${recordId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const result = await readApi<ImageTaskStatusPayload>(response);
+      window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
+      notifyAuthChanged();
+
+      const images = (result.data.images || []).map(mediaUrl);
+      if (images.length > 0) {
+        setMessages((items) =>
+          items.map((message) =>
+            message.id === loadingMessageId
+              ? {
+                  ...message,
+                  images,
+                  status: "done",
+                  elapsedSeconds: result.data.done ? Math.max(1, Math.round((Date.now() - startedAt) / 1000)) : message.elapsedSeconds
+                }
+              : message
+          )
+        );
+      }
+
+      if (result.data.done) {
+        const failed = (result.data.tasks || []).filter((task) => task.status === "failed");
+        if (images.length === 0) {
+          throw new Error(failed[0]?.error_message || "生成失败");
+        }
+        const elapsedSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+        setMessages((items) =>
+          items.map((message) =>
+            message.id === loadingMessageId
+              ? {
+                  ...message,
+                  status: "done",
+                  elapsedSeconds,
+                  images
+                }
+              : message
+          )
+        );
+        return;
+      }
+    }
+
+    throw new Error("生成任务仍在处理中，请稍后到生成记录查看结果");
+  }
+
   async function generate() {
     const cleanPrompt = prompt.trim();
     if (!cleanPrompt || generating || !token) return;
@@ -322,8 +399,20 @@ function UniversalImageContent() {
         })
       });
       const result = await readApi<UniversalImagePayload>(response);
-      window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
-      notifyAuthChanged();
+      if (result.data.user) {
+        window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
+        notifyAuthChanged();
+      }
+      if (!result.data.id) {
+        throw new Error("生成任务创建失败");
+      }
+
+      const immediateImages = (result.data.images || []).map(mediaUrl);
+      if (immediateImages.length === 0 || result.data.done === false || result.data.status === "processing") {
+        await pollUniversalImage(result.data.id, loadingMessageId, startedAt);
+        return;
+      }
+
       const elapsedSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
       setMessages((items) =>
         items.map((message) =>
@@ -332,7 +421,7 @@ function UniversalImageContent() {
                 ...message,
                 status: "done",
                 elapsedSeconds,
-                images: result.data.images.map(mediaUrl)
+                images: immediateImages
               }
             : message
         )
