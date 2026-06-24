@@ -3,7 +3,7 @@
 import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
-import { Download, ImagePlus, Loader2, Sparkles, Upload, X } from "lucide-react";
+import { AlertCircle, Download, ImagePlus, Loader2, Sparkles, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -213,6 +213,10 @@ function WatermarkRemoverContent() {
           <p className="mt-6 max-w-[780px] text-base font-medium leading-8 text-[#5f6674] sm:text-lg">
             自动识别图片中的各种水印、文字、Logo，智能填充背景，不留痕迹。
           </p>
+          <div className="mt-6 flex w-full max-w-[1056px] items-center gap-3 rounded-lg border border-[#f2c15d] bg-[#fffaf0] px-4 py-3 text-left text-sm font-extrabold text-[#d36a00]">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>去水印图片仅临时展示，系统不会留存资源，为避免图片丢失，请立即下载至本地保存。</span>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.92fr)]">

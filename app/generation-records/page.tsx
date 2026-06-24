@@ -180,7 +180,7 @@ function GenerationRecordsContent() {
     return () => window.clearTimeout(timer);
   }, [fetchRecords]);
 
-  const visibleRecords = useMemo(() => records.filter((record) => !isFailedImageRecord(record)), [records]);
+  const visibleRecords = useMemo(() => records.filter((record) => record.type !== "watermark_remover" && !isFailedImageRecord(record)), [records]);
 
   const counts = useMemo(() => {
     const image = visibleRecords.filter((item) => recordMedia(item).type === "image").length;

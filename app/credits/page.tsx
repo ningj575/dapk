@@ -62,6 +62,27 @@ function formatTime(value: string) {
   return date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
+function displayCreditRemark(remark: string) {
+  const text = String(remark || "").trim();
+  if (text === "Image generation task") return "AI生图消耗";
+  if (/Watermark/i.test(text)) return "去水印消耗";
+  if (/Universal image/i.test(text)) return "万能生图消耗";
+  if (/Main image/i.test(text)) return "主图生成消耗";
+  if (/Detail image/i.test(text)) return "详情图生成消耗";
+  if (/Video/i.test(text)) return "视频生成消耗";
+  return text;
+}
+
+function displayCreditTitle(log: CreditLog) {
+  const remark = displayCreditRemark(log.remark);
+  if (remark.includes("去水印")) return "去水印";
+  if (remark.includes("主图")) return "主图生成";
+  if (remark.includes("详情")) return "详情图生成";
+  if (remark.includes("万能")) return "万能生图";
+  if (remark.includes("视频")) return "视频生成";
+  return log.title === "场景图生成" ? "AI生图" : log.title;
+}
+
 function CreditContent() {
   const token = useAuthToken();
   const [logs, setLogs] = useState<CreditLog[]>([]);
@@ -151,6 +172,7 @@ function CreditContent() {
             ) : logs.map((log) => {
               const positive = log.change_amount > 0;
               const Icon = positive ? ArrowDownLeft : ArrowUpRight;
+              const remark = displayCreditRemark(log.remark);
               return (
                 <article key={log.id} className="flex items-center justify-between gap-4 rounded-lg border border-[#e5eaf0] bg-white px-3 py-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -159,10 +181,10 @@ function CreditContent() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h2 className="truncate text-base font-normal text-[#0d0d0d]">{log.title}</h2>
+                        <h2 className="truncate text-base font-normal text-[#0d0d0d]">{displayCreditTitle(log)}</h2>
                         {log.type === "refund" && <span className="rounded-full border border-amber-300 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">退还</span>}
                       </div>
-                      <p className="mt-1 truncate text-base font-normal text-[#0d0d0d]">{formatTime(log.created_at)}　{log.remark}</p>
+                      <p className="mt-1 truncate text-base font-normal text-[#0d0d0d]">{formatTime(log.created_at)}　{remark}</p>
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
