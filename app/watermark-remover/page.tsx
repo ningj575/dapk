@@ -235,12 +235,12 @@ function WatermarkRemoverContent() {
             <input ref={inputRef} className="hidden" type="file" accept="image/*" onChange={(event) => void onFilesChange(event.target.files)} />
             <button
               type="button"
-              className="flex min-h-[520px] w-full items-center justify-center overflow-hidden rounded-[26px] border-2 border-dashed border-[#ded8cd] bg-[#f4f2ee] p-4 text-center transition hover:border-[#bfb6aa] hover:bg-[#f1eee8]"
+              className="flex min-h-[420px] w-full items-center justify-center overflow-hidden rounded-[26px] border-2 border-dashed border-[#ded8cd] bg-[#f4f2ee] p-4 text-center transition hover:border-[#bfb6aa] hover:bg-[#f1eee8] sm:min-h-[520px]"
               onClick={() => inputRef.current?.click()}
             >
               {sourceImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={sourceImage} alt="待去水印图片" className="max-h-[560px] w-full rounded-[20px] object-contain" />
+                <img src={sourceImage} alt="待去水印图片" className="max-h-[420px] w-full rounded-[20px] object-contain sm:max-h-[560px]" />
               ) : (
                 <span className="flex flex-col items-center">
                   <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#808898] shadow-sm">
@@ -266,7 +266,7 @@ function WatermarkRemoverContent() {
                 </a>
               )}
             </div>
-            <div className="flex min-h-[520px] items-center justify-center overflow-hidden rounded-[26px] bg-[#f6f3ed] p-4">
+            <div className="flex min-h-[420px] items-center justify-center overflow-hidden rounded-[26px] bg-[#f6f3ed] p-4 sm:min-h-[520px]">
               {generating ? (
                 <div className="flex flex-col items-center text-center">
                   <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_18px_42px_-24px_rgba(16,24,39,0.55)]">
@@ -278,7 +278,7 @@ function WatermarkRemoverContent() {
               ) : resultImage ? (
                 <button type="button" className="block w-full" onClick={() => setPreviewOpen(true)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={resultImage} alt="去水印结果" className="max-h-[560px] w-full rounded-[20px] object-contain" />
+                  <img src={resultImage} alt="去水印结果" className="max-h-[420px] w-full rounded-[20px] object-contain sm:max-h-[560px]" />
                 </button>
               ) : (
                 <div className="flex flex-col items-center text-center text-[#8f97a5]">

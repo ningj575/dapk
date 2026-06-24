@@ -140,12 +140,12 @@ function resolveMediaUrl(src?: string) {
 
 export default function Home() {
   const [loginOpen, setLoginOpen] = useState(false);
-  const [redirectTo, setRedirectTo] = useState("/image-editor");
+  const [redirectTo, setRedirectTo] = useState("/watermark-remover");
   const [showcaseImages, setShowcaseImages] = useState<Record<string, HomeShowcaseImage> | null>(null);
   const router = useRouter();
   const token = useAuthToken();
   const ready = Boolean(useClientReady());
-  const openLogin = (target = "/image-editor") => {
+  const openLogin = (target = "/watermark-remover") => {
     if (token) {
       router.push(target);
       return;
@@ -206,7 +206,7 @@ export default function Home() {
           <button
             className="press-scale inline-flex h-9 items-center justify-center gap-2 rounded-[0.9rem] border border-[#171d2a] bg-[#101827] px-4 text-sm font-semibold text-[#f8f4ee] shadow-[0_2px_8px_rgba(16,24,39,0.08),0_14px_34px_-12px_rgba(16,24,39,0.38)] transition-all duration-200 hover:-translate-y-px hover:bg-[#151f31]"
             type="button"
-            onClick={() => openLogin()}
+            onClick={() => openLogin("/watermark-remover")}
           >
             立即体验
             <ArrowRight className="h-3.5 w-3.5" />
@@ -217,7 +217,7 @@ export default function Home() {
       <main>
         <section className="relative flex min-h-[calc(100vh-64px)] items-center overflow-hidden pb-16 pt-20 sm:pb-24 sm:pt-28">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_28%_18%,rgba(251,191,146,0.14),transparent),radial-gradient(ellipse_50%_45%_at_72%_28%,rgba(167,215,198,0.11),transparent),radial-gradient(ellipse_45%_40%_at_50%_82%,rgba(196,181,219,0.09),transparent)]" />
-          <div className="relative mx-auto w-full max-w-[1280px] px-5 sm:px-8">
+          <div className="relative mx-auto w-full max-w-[1440px] px-5 sm:px-8">
             <div className="flex flex-col items-center text-center">
               <h1 className="max-w-[1100px] font-display text-[clamp(3.25rem,7vw,5.5rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#101827]">
                 一键上传 高级出圈
@@ -226,13 +226,13 @@ export default function Home() {
                 GPT Image 2 + Nano Banana 2 双引擎驱动。深耕电商主图、详情页制作，上传即出稿，省去外包开销与漫长定稿周期。
               </p>
 
-              <div className="mt-20 grid w-full max-w-[1240px] grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-20 grid w-full max-w-[1400px] grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                 {featureCards.map((card) => {
                   const Icon = card.icon;
                   return (
                     <button
                       key={card.title}
-                      className="group glass-card relative min-h-[250px] overflow-hidden rounded-[2rem] p-8 text-left transition-all duration-500 ease-out hover:-translate-y-1.5 hover:border-white/70 sm:min-h-[270px] sm:p-10"
+                      className="group glass-card relative flex min-h-[250px] flex-col overflow-hidden rounded-[2rem] p-8 text-left transition-all duration-500 ease-out hover:-translate-y-1.5 hover:border-white/70 sm:min-h-[270px] lg:p-8 xl:min-h-[280px]"
                       type="button"
                       onClick={() => openLogin(card.href)}
                     >
@@ -243,11 +243,11 @@ export default function Home() {
                         ))}
                       </div>
                       <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px opacity-0 transition-opacity duration-500 group-hover:opacity-50" style={{ background: `linear-gradient(90deg, transparent, ${card.glow}, transparent)` }} />
-                      <div className={`relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-gradient-to-br ${card.gradient} text-white shadow-[0_18px_34px_-18px_rgba(16,24,39,0.65)] ring-1 ring-white/25 transition-all duration-500 group-hover:scale-105 group-hover:shadow-xl`}>
+                      <div className={`relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[24px] bg-gradient-to-br ${card.gradient} text-white shadow-[0_18px_34px_-18px_rgba(16,24,39,0.65)] ring-1 ring-white/25 transition-all duration-500 group-hover:scale-105 group-hover:shadow-xl`}>
                         <Icon className="h-10 w-10" strokeWidth={1.8} />
                       </div>
-                      <div className="relative mt-7 flex items-center gap-5">
-                        <h3 className="text-3xl font-extrabold tracking-tight text-[#101827] transition-transform duration-300 group-hover:-translate-x-0.5">
+                      <div className="relative mt-7 flex min-h-[44px] items-center justify-between gap-4">
+                        <h3 className="whitespace-nowrap text-[1.7rem] font-extrabold leading-tight tracking-tight text-[#101827] transition-transform duration-300 group-hover:-translate-x-0.5 2xl:text-3xl">
                           {card.title}
                         </h3>
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#101827]/45 shadow-[0_12px_28px_-18px_rgba(16,24,39,0.7)] transition-all duration-500 group-hover:text-[#101827]">
@@ -327,7 +327,7 @@ type ShowcaseProps = (typeof showcases)[number] & {
 
 function Showcase({ index, title, subtitle, points, beforeLabel, afterLabel, beforeSrc, afterSrc, aspectRatio, href, onOpen }: ShowcaseProps) {
   return (
-    <section className="relative overflow-hidden bg-[#faf9f7] px-5 py-24 sm:px-8 sm:py-28">
+    <section className="relative overflow-hidden bg-[#faf9f7] px-5 py-14 sm:px-8 sm:py-[4.5rem]">
       <div className="mx-auto max-w-[1080px]">
         <div className="flex flex-col items-center text-center">
           <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-[#ebe6dd] bg-white px-2 text-[11px] font-bold text-[#b3aaa0] shadow-sm">
