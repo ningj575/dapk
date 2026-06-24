@@ -42,10 +42,10 @@ const filterTabs: Array<[FilterType, string, keyof RecordCounts, LucideIcon]> = 
   ["video", "视频", "video", Video]
 ];
 const navItems = [
+  ["去水印", "/watermark-remover"],
   ["万能生图", "/image-editor"],
   ["主图", "/studio-genesis"],
   ["详情图", "/ecom-studio"],
-  ["去水印", "/watermark-remover"],
   ["套餐", "/pricing"]
 ];
 

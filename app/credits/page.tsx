@@ -22,10 +22,10 @@ type CreditLog = {
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 const navItems = [
+  ["去水印", "/watermark-remover"],
   ["万能生图", "/image-editor"],
   ["主图", "/studio-genesis"],
   ["详情图", "/ecom-studio"],
-  ["去水印", "/watermark-remover"],
   ["套餐", "/pricing"]
 ];
 

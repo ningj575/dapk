@@ -5,6 +5,7 @@ import { useAuthToken, useClientReady } from "@/components/auth-state";
 import {
   ArrowRight,
   Camera,
+  Eraser,
   LayoutGrid,
   WandSparkles,
 } from "lucide-react";
@@ -12,6 +13,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const featureCards = [
+  {
+    title: "AI去水印",
+    desc: "免费移除图像中最烦人的水印\n智能填充背景，还原干净画面",
+    icon: Eraser,
+    gradient: "from-zinc-700 to-slate-950",
+    glow: "rgba(16,24,39,0.45)",
+    href: "/watermark-remover"
+  },
   {
     title: "全能设计",
     desc: "海报/广告/社媒配图\n一句话生成创意设计",
@@ -47,8 +56,25 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:
 
 const showcases = [
   {
-    showcaseKey: "universal_design",
+    showcaseKey: "watermark_remover",
     index: "01",
+    title: "AI去水印",
+    subtitle: "自动识别图片中的水印、文字与 Logo，智能补全背景纹理，快速获得干净自然的商品图片。",
+    points: [
+      ["智能识别水印", "自动定位文字、Logo、半透明水印等干扰元素"],
+      ["背景自然填充", "根据周围纹理和光影补全画面，减少修图痕迹"],
+      ["适合电商素材", "商品图、活动图、详情页素材都可快速清理后再使用"]
+    ],
+    beforeLabel: "带水印原图",
+    afterLabel: "去水印结果",
+    beforeSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-before.jpg",
+    afterSrc: "https://shopix-ai.company/images/showcase/refinement-lipstick-after.png",
+    aspectRatio: "3 / 4",
+    href: "/watermark-remover"
+  },
+  {
+    showcaseKey: "universal_design",
+    index: "02",
     title: "全能设计",
     subtitle: "从一句提示词或一张参考图出发，快速生成海报、广告、社媒配图等创意设计稿。",
     points: [
@@ -65,7 +91,7 @@ const showcases = [
   },
   {
     showcaseKey: "main_image",
-    index: "02",
+    index: "03",
     title: "电商主图生成",
     subtitle: "上传商品原图后，达客会分析产品特征与卖点，生成适配平台要求的电商主图。",
     points: [
@@ -82,7 +108,7 @@ const showcases = [
   },
   {
     showcaseKey: "detail_image",
-    index: "03",
+    index: "04",
     title: "详情页素材生成",
     subtitle: "从多角度参考图出发，自动规划详情页模块，并批量生成完整的电商详情页素材。",
     points: [
@@ -200,7 +226,7 @@ export default function Home() {
                 GPT Image 2 + Nano Banana 2 双引擎驱动。深耕电商主图、详情页制作，上传即出稿，省去外包开销与漫长定稿周期。
               </p>
 
-              <div className="mt-20 grid w-full max-w-[1180px] grid-cols-1 gap-7 sm:grid-cols-3">
+              <div className="mt-20 grid w-full max-w-[1240px] grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
                 {featureCards.map((card) => {
                   const Icon = card.icon;
                   return (
