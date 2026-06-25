@@ -4,10 +4,8 @@ export async function downloadImage(src: string, filename = "dake-image.png") {
   if (!src || typeof window === "undefined") return;
 
   const safeName = filename || "dake-image.png";
-  const downloadUrl = src.startsWith("data:")
-    ? src
-    : `/api/download-image?url=${encodeURIComponent(src)}&filename=${encodeURIComponent(safeName)}`;
   const downloadKey = `${src}::${safeName}`;
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent);
 
   if (activeDownloads.has(downloadKey)) {
     showDownloadToast("正在准备下载，请稍候...");
@@ -15,10 +13,14 @@ export async function downloadImage(src: string, filename = "dake-image.png") {
   }
 
   activeDownloads.add(downloadKey);
-  showDownloadToast("正在准备下载...");
+  showDownloadToast(isMobile ? "正在准备图片..." : "正在启动下载...");
 
   try {
-    triggerDownload(downloadUrl, safeName);
+    if (isMobile) {
+      await downloadOnMobile(src, safeName);
+    } else {
+      triggerDownload(src, safeName);
+    }
   } catch {
     showDownloadToast("下载启动失败，请稍后重试");
   } finally {
@@ -27,6 +29,27 @@ export async function downloadImage(src: string, filename = "dake-image.png") {
       hideDownloadToast();
     }, 3000);
   }
+}
+
+async function downloadOnMobile(src: string, filename: string) {
+  const response = await fetch(src, { mode: "cors" });
+  if (!response.ok) throw new Error("download failed");
+
+  const blob = await response.blob();
+  const file = new File([blob], filename, { type: blob.type || "image/png" });
+  const navigatorWithShare = window.navigator as Navigator & {
+    canShare?: (data?: ShareData) => boolean;
+    share?: (data: ShareData) => Promise<void>;
+  };
+
+  if (navigatorWithShare.share && (!navigatorWithShare.canShare || navigatorWithShare.canShare({ files: [file] }))) {
+    await navigatorWithShare.share({ files: [file], title: filename });
+    return;
+  }
+
+  const objectUrl = URL.createObjectURL(blob);
+  triggerDownload(objectUrl, filename);
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
 }
 
 function triggerDownload(url: string, filename: string) {
