@@ -23,14 +23,20 @@ export function LoginDialog({ open, onOpenChange, redirectTo = "/image-editor" }
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"error" | "success" | "info">("info");
   const router = useRouter();
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
-  function enterWorkspace(token: string, user: unknown) {
+  function saveAuth(token: string, user: unknown) {
     window.localStorage.setItem("dake_token", token);
     window.localStorage.setItem("dake_user", JSON.stringify(user));
     notifyAuthChanged();
+  }
+
+  function enterWorkspace(token: string, user: unknown) {
+    saveAuth(token, user);
     handleOpenChange(false);
     router.push(redirectTo);
   }
@@ -65,12 +71,15 @@ export function LoginDialog({ open, onOpenChange, redirectTo = "/image-editor" }
     setPassword("");
     setConfirmPassword("");
     setMessage("");
+    setMessageType("info");
+    setRedirecting(false);
     setShowPassword(false);
     setShowConfirmPassword(false);
   }
 
   async function sendCode() {
     setMessage("");
+    setMessageType("info");
     setDevCode("");
     setLoading(true);
     try {
@@ -78,8 +87,10 @@ export function LoginDialog({ open, onOpenChange, redirectTo = "/image-editor" }
       setCodeSent(true);
       setDevCode(data?.dev_code || "");
       setMessage("验证码已发送到你的邮箱。");
+      setMessageType("success");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "验证码发送失败");
+      setMessageType("error");
     } finally {
       setLoading(false);
     }
@@ -87,12 +98,15 @@ export function LoginDialog({ open, onOpenChange, redirectTo = "/image-editor" }
 
   async function submitAuth() {
     setMessage("");
+    setMessageType("info");
     if ((view === "register" || view === "forgot") && password.length < 6) {
       setMessage("密码至少需要 6 位");
+      setMessageType("error");
       return;
     }
     if (view === "forgot" && password !== confirmPassword) {
       setMessage("两次输入的新密码不一致");
+      setMessageType("error");
       return;
     }
     setLoading(true);
@@ -101,14 +115,27 @@ export function LoginDialog({ open, onOpenChange, redirectTo = "/image-editor" }
         await requestApi("/api/auth/reset-password", { email, password, code, confirm_password: confirmPassword });
         switchView("login");
         setMessage("密码已重置，请使用新密码登录");
+        setMessageType("success");
         return;
       }
       const data = view === "login"
         ? await requestApi("/api/auth/login", { email, password })
         : await requestApi("/api/auth/register", { email, password, code });
+      if (view === "register") {
+        saveAuth(data.token, data.user);
+        setMessage("注册成功，即将进入工作台...");
+        setMessageType("success");
+        setRedirecting(true);
+        window.setTimeout(() => {
+          handleOpenChange(false);
+          router.push(redirectTo);
+        }, 2000);
+        return;
+      }
       enterWorkspace(data.token, data.user);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "操作失败，请稍后重试");
+      setMessageType("error");
     } finally {
       setLoading(false);
     }
@@ -263,14 +290,26 @@ export function LoginDialog({ open, onOpenChange, redirectTo = "/image-editor" }
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || redirecting}
                 className="press-scale flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-[#171d2a] bg-[#101827] text-sm font-semibold text-[#f8f4ee] shadow-[0_2px_8px_rgba(16,24,39,0.08),0_18px_40px_-16px_rgba(16,24,39,0.42)] transition hover:-translate-y-px hover:bg-[#151f31]"
               >
-                {loading ? "处理中..." : view === "login" ? "进入工作台" : view === "register" ? "注册并进入工作台" : "重置密码"}
+                {loading || redirecting ? "处理中..." : view === "login" ? "进入工作台" : view === "register" ? "注册并进入工作台" : "重置密码"}
                 <ArrowRight className="h-4 w-4" />
               </button>
 
-              {message && <p className="rounded-2xl border border-[#e9e1d7] bg-[#f6f5f3] px-3 py-2 text-center text-xs font-semibold text-[#697080]">{message}</p>}
+              {message && (
+                <p
+                  className={`rounded-2xl border px-3 py-2 text-center text-xs font-semibold ${
+                    messageType === "error"
+                      ? "border-red-200 bg-red-50 text-red-700"
+                      : messageType === "success"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-[#e9e1d7] bg-[#f6f5f3] text-[#697080]"
+                  }`}
+                >
+                  {message}
+                </p>
+              )}
 
               <button
                 className="w-full text-center text-xs font-semibold text-[#697080] transition hover:text-[#101827]"

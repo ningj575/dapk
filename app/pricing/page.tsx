@@ -143,7 +143,7 @@ function AppHeader() {
             const selected = label === "套餐";
             return (
               <Link key={label} href={href}>
-                <span className={`inline-flex h-10 items-center rounded-[14px] px-4 text-sm font-semibold transition ${selected ? "bg-[#101827] text-white" : "text-[#5f6674] hover:bg-[#ede8df] hover:text-[#101827]"}`}>
+                <span className={`inline-flex h-10 items-center whitespace-nowrap rounded-[14px] px-4 text-sm font-semibold transition ${selected ? "bg-[#101827] text-white" : "text-[#5f6674] hover:bg-[#ede8df] hover:text-[#101827]"}`}>
                   {label}
                 </span>
               </Link>

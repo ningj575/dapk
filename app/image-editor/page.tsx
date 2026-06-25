@@ -134,7 +134,7 @@ function AppHeader() {
             const selected = href === "/image-editor";
             return (
               <Link key={label} href={href}>
-                <span className={`inline-flex h-10 items-center rounded-[14px] px-4 text-sm font-semibold transition ${selected ? "bg-[#101827] text-white" : "text-[#5f6674] hover:bg-[#ede8df] hover:text-[#101827]"}`}>
+                <span className={`inline-flex h-10 items-center whitespace-nowrap rounded-[14px] px-4 text-sm font-semibold transition ${selected ? "bg-[#101827] text-white" : "text-[#5f6674] hover:bg-[#ede8df] hover:text-[#101827]"}`}>
                   {label}
                 </span>
               </Link>
@@ -782,6 +782,7 @@ function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
 function SelectControl({ value, options, onChange, testId }: { value: string; options: string[]; onChange: (value: string) => void; testId?: string }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
+  const isModelSelect = options.some((option) => option === "GPT-Image-2" || option === "Nano Banana 2" || option === "Seedream-5.0");
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -798,7 +799,7 @@ function SelectControl({ value, options, onChange, testId }: { value: string; op
       <button
         type="button"
         data-testid={testId}
-        className="inline-flex h-8 max-w-[82px] items-center gap-1 rounded-full bg-white px-1 text-[11px] font-extrabold text-[#596170] hover:bg-[#f6f5f3] sm:max-w-none sm:text-xs"
+        className={`inline-flex h-8 items-center gap-1 rounded-full bg-white px-1.5 text-[11px] font-extrabold text-[#596170] hover:bg-[#f6f5f3] sm:max-w-none sm:text-xs ${isModelSelect ? "max-w-[104px] min-w-[96px]" : "max-w-[82px]"}`}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="truncate">{value}</span>
