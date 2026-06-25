@@ -5,7 +5,8 @@ import { AuthGuard } from "@/components/auth-guard";
 import { useAuthToken } from "@/components/auth-state";
 import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Coins, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 type ApiResponse<T> = { code: number; message: string; data: T };
 type LogType = "all" | "consume" | "recharge" | "refund";
@@ -85,12 +86,9 @@ function displayCreditTitle(log: CreditLog) {
 
 function CreditContent() {
   const token = useAuthToken();
+  const searchParams = useSearchParams();
   const [logs, setLogs] = useState<CreditLog[]>([]);
-  const [type, setType] = useState<LogType>(() => {
-    if (typeof window === "undefined") return "all";
-    const value = new URLSearchParams(window.location.search).get("type");
-    return value === "consume" || value === "recharge" || value === "refund" ? value : "all";
-  });
+  const [type, setType] = useState<LogType>("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -99,15 +97,11 @@ function CreditContent() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const value = new URLSearchParams(window.location.search).get("type");
-      if (value === "consume" || value === "recharge" || value === "refund") {
-        setType(value);
-        setPage(1);
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    const value = searchParams.get("type");
+    const nextType: LogType = value === "consume" || value === "recharge" || value === "refund" ? value : "all";
+    setType(nextType);
+    setPage(1);
+  }, [searchParams]);
 
   const fetchLogs = useCallback(async () => {
     if (!token) return;
@@ -215,7 +209,9 @@ function CreditContent() {
 export default function CreditsPage() {
   return (
     <AuthGuard>
-      <CreditContent />
+      <Suspense fallback={<main className="min-h-screen bg-[#f4f8fb]" />}>
+        <CreditContent />
+      </Suspense>
     </AuthGuard>
   );
 }

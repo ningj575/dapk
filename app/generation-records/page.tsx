@@ -3,6 +3,7 @@
 import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
 import { useAuthToken } from "@/components/auth-state";
+import { downloadImage } from "@/lib/download-image";
 import { ChevronLeft, ChevronRight, Clock3, Download, ImageIcon, Search, Sparkles, Video, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -311,10 +312,10 @@ function GenerationRecordsContent() {
             <div className="flex items-center justify-between border-b border-[#e7ecf0] px-5 py-4">
               <h2 className="truncate text-base font-black text-[#101827]">图片预览</h2>
               <div className="flex items-center gap-2">
-                <a className="inline-flex h-9 items-center gap-2 rounded-full bg-[#101827] px-4 text-sm font-bold text-white transition hover:bg-black" href={previewSrc} download>
+                <button className="inline-flex h-9 items-center gap-2 rounded-full bg-[#101827] px-4 text-sm font-bold text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(previewSrc, `dake-generation-${preview.index + 1}.png`)}>
                   <Download className="h-4 w-4" />
                   下载
-                </a>
+                </button>
                 <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eef2f5] text-[#5f6674] hover:text-[#101827]" type="button" onClick={() => setPreview(null)} aria-label="关闭">
                   <X className="h-4 w-4" />
                 </button>

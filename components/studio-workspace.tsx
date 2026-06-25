@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import { AccountMenu } from "@/components/account-menu";
 import { notifyAuthChanged, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
+import { downloadImage } from "@/lib/download-image";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -839,12 +840,7 @@ function ResultPanel({ mode, phase, detailMode, quantity, ratio, model, images }
   function downloadAllImages() {
     images.forEach((image, index) => {
       window.setTimeout(() => {
-        const link = document.createElement("a");
-        link.href = mediaUrl(image);
-        link.download = `dake-${mode === "genesis" ? "main" : "detail"}-image-${index + 1}.png`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        void downloadImage(mediaUrl(image), `dake-${mode === "genesis" ? "main" : "detail"}-image-${index + 1}.png`);
       }, index * 120);
     });
   }
@@ -875,12 +871,7 @@ function ResultPanel({ mode, phase, detailMode, quantity, ratio, model, images }
       context.drawImage(image, 0, y, width, drawHeight);
       y += drawHeight;
     });
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = "dake-detail-stitched.png";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    await downloadImage(canvas.toDataURL("image/png"), "dake-detail-stitched.png");
   }
 
   return (
@@ -1002,9 +993,9 @@ function GenesisResult({ quantity, images, phase }: { quantity: string; images: 
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img className="h-full w-full rounded-[18px] object-cover" src={displayImage} alt={`主图结果 ${index + 1}`} />
               </button>
-              <a className="absolute bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#101827] opacity-0 shadow-[0_10px_24px_-14px_rgba(16,24,39,0.65)] transition hover:bg-[#101827] hover:text-white group-hover:opacity-100" href={displayImage} download={`dake-main-image-${index + 1}.png`} onClick={(event) => event.stopPropagation()} aria-label="下载图片">
+              <button className="absolute bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#101827] opacity-0 shadow-[0_10px_24px_-14px_rgba(16,24,39,0.65)] transition hover:bg-[#101827] hover:text-white group-hover:opacity-100" type="button" onClick={(event) => { event.stopPropagation(); void downloadImage(displayImage, `dake-main-image-${index + 1}.png`); }} aria-label="下载图片">
                 <Download className="h-4 w-4" />
-              </a>
+              </button>
             </div>
             );
           })}
@@ -1024,9 +1015,9 @@ function GenesisResult({ quantity, images, phase }: { quantity: string; images: 
               <div className="flex items-center justify-between border-b border-[#e7ecf0] px-5 py-4">
                 <p className="text-sm font-bold text-[#5f6674]">{previewIndex! + 1} / {images.length}</p>
                 <div className="flex items-center gap-2">
-                  <a className="flex h-9 w-9 items-center justify-center rounded-full bg-[#101827] text-white transition hover:bg-black" href={activePreview} download={`dake-main-image-${previewIndex! + 1}.png`} aria-label="下载图片">
+                  <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#101827] text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(activePreview, `dake-main-image-${previewIndex! + 1}.png`)} aria-label="下载图片">
                     <Download className="h-4 w-4" />
-                  </a>
+                  </button>
                   <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eef2f5] text-[#5f6674] hover:text-[#101827]" type="button" onClick={() => setPreviewIndex(null)} aria-label="关闭">
                     <X className="h-4 w-4" />
                   </button>
@@ -1101,9 +1092,9 @@ function DetailResult({ quantity, images, phase, onOpenPreview }: { quantity: st
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className="h-full w-full rounded-[18px] object-cover" src={displayImage} alt={`详情图结果 ${index + 1}`} />
             </button>
-            <a className="absolute bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#101827] opacity-0 shadow-[0_10px_24px_-14px_rgba(16,24,39,0.65)] transition hover:bg-[#101827] hover:text-white group-hover:opacity-100" href={displayImage} download={`dake-detail-image-${index + 1}.png`} onClick={(event) => event.stopPropagation()} aria-label="下载图片">
+            <button className="absolute bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#101827] opacity-0 shadow-[0_10px_24px_-14px_rgba(16,24,39,0.65)] transition hover:bg-[#101827] hover:text-white group-hover:opacity-100" type="button" onClick={(event) => { event.stopPropagation(); void downloadImage(displayImage, `dake-detail-image-${index + 1}.png`); }} aria-label="下载图片">
               <Download className="h-4 w-4" />
-            </a>
+            </button>
           </div>
           );
         })}

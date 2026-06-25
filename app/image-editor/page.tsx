@@ -3,6 +3,7 @@
 import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, type DakeUser, useAuthToken } from "@/components/auth-state";
+import { downloadImage } from "@/lib/download-image";
 import { ChevronDown, Download, Loader2, Plus, Send, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import type { ClipboardEvent, DragEvent } from "react";
@@ -714,14 +715,14 @@ function ImagePreview({
           <img src={activeImage} alt={`预览图 ${activeIndex + 1}`} className="aspect-square w-full object-cover" />
         </button>
         {canDownload && (
-          <a
+          <button
             className="flex h-10 items-center justify-center gap-2 border-t border-[#eee7dd] text-xs font-extrabold text-[#101827] transition hover:bg-[#f6f5f3]"
-            href={activeImage}
-            download={`dake-universal-${messageId}-${activeIndex + 1}.png`}
+            type="button"
+            onClick={() => void downloadImage(activeImage, `dake-universal-${messageId}-${activeIndex + 1}.png`)}
           >
             <Download className="h-4 w-4" />
             下载图片
-          </a>
+          </button>
         )}
       </div>
 
@@ -764,16 +765,14 @@ function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt="生成图片预览" className="max-h-[72vh] w-auto max-w-full object-contain" />
         </div>
-        <a
+        <button
           className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#101827] px-6 text-sm font-extrabold text-white transition hover:bg-[#2b3344]"
-          href={src}
-          download="dake-image.png"
-          target="_blank"
-          rel="noreferrer"
+          type="button"
+          onClick={() => void downloadImage(src, "dake-image.png")}
         >
           <Download className="h-4 w-4" />
           下载图片
-        </a>
+        </button>
       </div>
     </div>
   );

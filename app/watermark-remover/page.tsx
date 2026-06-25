@@ -3,6 +3,7 @@
 import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
+import { downloadImage } from "@/lib/download-image";
 import { AlertCircle, Download, ImagePlus, Loader2, Sparkles, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -260,10 +261,10 @@ function WatermarkRemoverContent() {
                 <p className="mt-1 text-sm text-[#697080]">结果生成后会显示在这里。</p>
               </div>
               {resultImage && (
-                <a className="studio-tool-btn" href={resultImage} download="dake-watermark-removed.png">
+                <button className="studio-tool-btn" type="button" onClick={() => void downloadImage(resultImage, "dake-watermark-removed.png")}>
                   <Download className="h-4 w-4" />
                   下载
-                </a>
+                </button>
               )}
             </div>
             <div className="flex min-h-[420px] items-center justify-center overflow-hidden rounded-[26px] bg-[#f6f3ed] p-4 sm:min-h-[520px]">
@@ -312,9 +313,9 @@ function WatermarkRemoverContent() {
             <div className="flex items-center justify-between border-b border-[#e7ecf0] px-5 py-4">
               <p className="text-sm font-bold text-[#5f6674]">去水印结果预览</p>
               <div className="flex items-center gap-2">
-                <a className="flex h-9 w-9 items-center justify-center rounded-full bg-[#101827] text-white transition hover:bg-black" href={resultImage} download="dake-watermark-removed.png" aria-label="下载图片">
+                <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#101827] text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(resultImage, "dake-watermark-removed.png")} aria-label="下载图片">
                   <Download className="h-4 w-4" />
-                </a>
+                </button>
                 <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eef2f5] text-[#5f6674] hover:text-[#101827]" type="button" onClick={() => setPreviewOpen(false)} aria-label="关闭">
                   <X className="h-4 w-4" />
                 </button>
