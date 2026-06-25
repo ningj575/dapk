@@ -19,10 +19,10 @@ export async function downloadImage(src: string, filename = "dake-image.png") {
     if (isMobile) {
       await downloadOnMobile(src, safeName);
     } else {
-      triggerDownload(src, safeName);
+      downloadOnDesktop(src, safeName);
     }
   } catch {
-    showDownloadToast("下载启动失败，请稍后重试");
+    fallbackOpenImage(src, isMobile);
   } finally {
     window.setTimeout(() => {
       activeDownloads.delete(downloadKey);
@@ -31,11 +31,12 @@ export async function downloadImage(src: string, filename = "dake-image.png") {
   }
 }
 
-async function downloadOnMobile(src: string, filename: string) {
-  const response = await fetch(src, { mode: "cors" });
-  if (!response.ok) throw new Error("download failed");
+function downloadOnDesktop(src: string, filename: string) {
+  triggerDownload(getDownloadUrl(src, filename), filename);
+}
 
-  const blob = await response.blob();
+async function downloadOnMobile(src: string, filename: string) {
+  const blob = await fetchImageBlob(getDownloadUrl(src, filename));
   const file = new File([blob], filename, { type: blob.type || "image/png" });
   const navigatorWithShare = window.navigator as Navigator & {
     canShare?: (data?: ShareData) => boolean;
@@ -50,6 +51,36 @@ async function downloadOnMobile(src: string, filename: string) {
   const objectUrl = URL.createObjectURL(blob);
   triggerDownload(objectUrl, filename);
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+}
+
+async function fetchImageBlob(url: string) {
+  if (url.startsWith("data:")) {
+    const response = await fetch(url);
+    return response.blob();
+  }
+
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error("download failed");
+  return response.blob();
+}
+
+function getDownloadUrl(src: string, filename: string) {
+  if (src.startsWith("data:") || src.startsWith("blob:")) return src;
+
+  const url = new URL(src, window.location.href);
+  if (url.origin === window.location.origin) return url.toString();
+
+  return `/api/download-image?url=${encodeURIComponent(url.toString())}&filename=${encodeURIComponent(filename)}`;
+}
+
+function fallbackOpenImage(src: string, isMobile: boolean) {
+  if (isMobile) {
+    showDownloadToast("图片已打开，可长按保存");
+    window.open(src, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  showDownloadToast("下载启动失败，请稍后重试");
 }
 
 function triggerDownload(url: string, filename: string) {
