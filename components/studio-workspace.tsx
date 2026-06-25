@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { AccountMenu } from "@/components/account-menu";
-import { notifyAuthChanged, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
+import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
 import { downloadImage } from "@/lib/download-image";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -261,9 +261,15 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const canFillDetail = detailUploads.length > 0 && detailProductName.trim().length > 0;
   const insufficientCredits = (mode === "genesis" ? canFillGenesis : canFillDetail) && hasCreditSnapshot && activeCost > Number(user?.credits || 0);
 
+  useEffect(() => {
+    if (!token) return;
+    void refreshAuthUser(apiBase).catch(() => undefined);
+  }, [token]);
+
   function switchMode(nextMode: StudioMode) {
     setMode(nextMode);
     window.history.replaceState(null, "", nextMode === "genesis" ? "/studio-genesis" : "/ecom-studio");
+    if (token) void refreshAuthUser(apiBase).catch(() => undefined);
   }
 
   function changeGenesisModel(nextModel: string) {

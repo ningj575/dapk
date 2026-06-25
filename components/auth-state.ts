@@ -59,6 +59,25 @@ export function getStoredUser(): DakeUser | null {
   }
 }
 
+export async function refreshAuthUser(apiBase: string) {
+  const token = getStoredToken();
+  if (!token || typeof window === "undefined") return null;
+
+  const response = await fetch(`${apiBase}/api/user/me`, {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const payload = (await response.json().catch(() => null)) as { code?: number; data?: { user?: DakeUser } } | null;
+  if (!response.ok || payload?.code !== 0 || !payload.data?.user) {
+    if (response.status === 401) clearAuth();
+    return null;
+  }
+
+  window.localStorage.setItem("dake_user", JSON.stringify(payload.data.user));
+  notifyAuthChanged();
+  return payload.data.user;
+}
+
 export function useAuthToken() {
   return useSyncExternalStore(subscribeAuth, authTokenSnapshot, () => "");
 }

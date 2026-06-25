@@ -2,7 +2,7 @@
 
 import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
-import { notifyAuthChanged, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
+import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
 import { downloadImage } from "@/lib/download-image";
 import { AlertCircle, Download, ImagePlus, Loader2, Sparkles, Upload, X } from "lucide-react";
 import Link from "next/link";
@@ -124,6 +124,11 @@ function WatermarkRemoverContent() {
   const cost = configuredCost(activeConfig);
   const insufficientCredits = typeof user?.credits === "number" && cost > Number(user?.credits || 0);
   const canGenerate = Boolean(sourceImage) && !generating && !insufficientCredits;
+
+  useEffect(() => {
+    if (!token) return;
+    void refreshAuthUser(apiBase).catch(() => undefined);
+  }, [token]);
 
   useEffect(() => {
     fetch(`${apiBase}/api/model-configs?module=watermark_remover`)
@@ -302,7 +307,13 @@ function WatermarkRemoverContent() {
             {generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
             {generating ? "处理中..." : "立即去水印"}
           </button>
-          <p className="mt-3 text-center text-sm font-semibold text-[#697080]">{insufficientCredits ? "积分不足，请先购买积分" : sourceImage ? `本次预计消耗 ${cost} 积分` : "请先上传要去水印的图片"}</p>
+          <p className="mt-3 text-center text-sm font-semibold text-[#697080]">{sourceImage ? `本次预计消耗 ${cost} 积分` : "请先上传要去水印的图片"}</p>
+          {insufficientCredits && (
+            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              积分不足
+              <Link className="ml-3 font-bold underline underline-offset-4" href="/pricing">购买积分</Link>
+            </div>
+          )}
           {error && <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
         </section>
       </section>

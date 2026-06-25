@@ -1,14 +1,17 @@
 "use client";
 
-import { clearAuth, useAuthUser } from "@/components/auth-state";
+import { clearAuth, refreshAuthUser, useAuthToken, useAuthUser } from "@/components/auth-state";
 import { ChevronDown, CircleUserRound, Coins, FileClock, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+
+const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
 export function AccountMenu() {
   const router = useRouter();
   const ref = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
+  const token = useAuthToken();
   const user = useAuthUser();
 
   useEffect(() => {
@@ -20,6 +23,11 @@ export function AccountMenu() {
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
+
+  useEffect(() => {
+    if (!open || !token) return;
+    void refreshAuthUser(apiBase).catch(() => undefined);
+  }, [open, token]);
 
   const email = user?.email || "未登录账号";
   const displayName = user?.nickname || email.split("@")[0] || "达客用户";

@@ -2,7 +2,7 @@
 
 import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
-import { notifyAuthChanged, type DakeUser, useAuthToken } from "@/components/auth-state";
+import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken } from "@/components/auth-state";
 import { downloadImage } from "@/lib/download-image";
 import { ChevronDown, Download, Loader2, Plus, Send, Sparkles, X } from "lucide-react";
 import Link from "next/link";
@@ -226,6 +226,11 @@ function UniversalImageContent() {
   const imageSizeOptions = useMemo(() => configuredResolutions(modelConfigs, model), [model, modelConfigs]);
   const activeImageSize = imageSizeOptions.includes(imageSize) ? imageSize : imageSizeOptions[0] || "1K";
   const cost = configuredCost(modelConfigs, model, activeImageSize, 50);
+
+  useEffect(() => {
+    if (!token) return;
+    void refreshAuthUser(apiBase).catch(() => undefined);
+  }, [token]);
 
   useEffect(() => {
     fetch(`${apiBase}/api/model-configs?module=universal_image`)
