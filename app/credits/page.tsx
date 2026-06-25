@@ -36,6 +36,10 @@ async function readApi<T>(response: Response): Promise<ApiResponse<T>> {
   return payload;
 }
 
+function parseLogType(value: string | null): LogType {
+  return value === "consume" || value === "recharge" || value === "refund" ? value : "all";
+}
+
 function AppHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-[#e5ded2] bg-[#faf9f7]/95 backdrop-blur">
@@ -87,8 +91,9 @@ function displayCreditTitle(log: CreditLog) {
 function CreditContent() {
   const token = useAuthToken();
   const searchParams = useSearchParams();
+  const routeType = parseLogType(searchParams.get("type"));
   const [logs, setLogs] = useState<CreditLog[]>([]);
-  const [type, setType] = useState<LogType>("all");
+  const [type, setType] = useState<LogType>(routeType);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -97,34 +102,43 @@ function CreditContent() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   useEffect(() => {
-    const value = searchParams.get("type");
-    const nextType: LogType = value === "consume" || value === "recharge" || value === "refund" ? value : "all";
-    setType(nextType);
+    const nextType = parseLogType(searchParams.get("type"));
+    if (nextType !== type) {
+      setType(nextType);
+    }
     setPage(1);
-  }, [searchParams]);
+  }, [searchParams, type]);
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (signal?: AbortSignal) => {
     if (!token) return;
     setLoading(true);
     setError("");
     try {
       const params = new URLSearchParams({ page: String(page), type });
       const response = await fetch(`${apiBase}/api/credit-logs?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        signal
       });
       const result = await readApi<{ logs: CreditLog[]; total: number }>(response);
       setLogs(result.data.logs || []);
       setTotal(result.data.total || 0);
     } catch (event) {
+      if (event instanceof Error && event.name === "AbortError") return;
       setError(event instanceof Error ? event.message : "积分记录加载失败");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   }, [page, token, type]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void fetchLogs(), 0);
-    return () => window.clearTimeout(timer);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => void fetchLogs(controller.signal), 0);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
   }, [fetchLogs]);
 
   const tabs = useMemo(() => [

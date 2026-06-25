@@ -189,7 +189,7 @@ function PaymentDialog({
           <div>
             <h2 className="text-xl font-extrabold text-[#101827]">选择支付方式</h2>
             <p className="mt-2 text-sm font-semibold text-[#697080]">
-              充值 {formatPoints(item.points)} Points，支付金额 ¥{item.price}
+              充值 {formatPoints(item.points)} 积分，支付金额 ¥{item.price}
             </p>
           </div>
           <button
@@ -373,7 +373,7 @@ function PricingContent() {
           <Coins className="h-6 w-6 text-[#596170]" />
           <span className="text-sm font-bold text-[#586272]">当前余额：</span>
           <strong className="font-display text-4xl font-black text-[#101827]">{formatPoints(balance)}</strong>
-          <span className="text-base font-bold text-[#586272]">Points</span>
+          <span className="text-base font-bold text-[#586272]">积分</span>
         </div>
 
         {error && (
@@ -406,7 +406,7 @@ function PricingContent() {
                   </div>
                   <div className="mt-8 text-center">
                     <h2 className="whitespace-nowrap font-display text-2xl font-black tracking-normal">
-                      {formatPoints(item.points)} <span className="text-xl">Points</span>
+                      {formatPoints(item.points)} <span className="text-xl">积分</span>
                     </h2>
                     <div className="mt-6 flex items-end justify-center gap-2">
                       <span className="font-display text-3xl font-black">¥{item.price}</span>
