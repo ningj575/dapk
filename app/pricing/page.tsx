@@ -307,7 +307,7 @@ function PricingContent() {
     const rows = payload?.packages || [];
     const hasExperience = rows.some((item) => item.is_experience || item.key === "experience");
     return rows
-      .filter((item) => !(hasExperience && (item.tone === "business" || item.key === "pro" || item.key === "professional")))
+      .filter((item) => !(hasExperience && (item.tone === "business" || item.key === "business" || item.key === "professional" || item.name.includes("专业"))))
       .slice(0, 4);
   }, [payload]);
 
