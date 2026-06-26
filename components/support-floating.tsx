@@ -71,6 +71,7 @@ export function SupportFloating() {
   const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
+  const [isWeChatBrowser, setIsWeChatBrowser] = useState(false);
   const qrCode = resolveMediaUrl(supportSettings.qr_code || "") || fallbackQrCode;
   const serviceTime = (supportSettings.service_time || "9:00-22:00").trim() || "9:00-22:00";
   const menuBelow = floatTop !== null && floatTop < 190;
@@ -86,6 +87,10 @@ export function SupportFloating() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    setIsWeChatBrowser(/MicroMessenger/i.test(window.navigator.userAgent));
   }, []);
 
   useEffect(() => {
@@ -251,9 +256,9 @@ export function SupportFloating() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="mx-auto mt-7 h-[170px] w-[170px] rounded-2xl border border-[#e9e1d7] bg-white p-2 shadow-sm" src={qrCode} alt="微信客服二维码" />
             <p className="mt-5 text-sm font-semibold text-[#5f6674]">使用微信扫一扫，立即咨询</p>
-            <a className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-[#171d2a] bg-[#101827] text-base font-black text-white shadow-[0_18px_40px_-16px_rgba(16,24,39,0.42)] transition hover:-translate-y-px hover:bg-[#151f31]" href="weixin://" role="button">
+            <a className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-[#171d2a] bg-[#101827] text-base font-black text-white shadow-[0_18px_40px_-16px_rgba(16,24,39,0.42)] transition hover:-translate-y-px hover:bg-[#151f31]" href={isWeChatBrowser ? "#" : "weixin://"} role="button" onClick={(event) => { if (isWeChatBrowser) event.preventDefault(); }}>
               <MessageCircle className="h-5 w-5" />
-              打开微信客服
+              {isWeChatBrowser ? "长按识别" : "打开微信客服"}
             </a>
             <p className="mt-5 text-sm font-medium text-[#8a94a3]">客服时间：{serviceTime}</p>
           </div>

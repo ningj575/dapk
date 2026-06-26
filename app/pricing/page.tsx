@@ -392,7 +392,7 @@ function PricingContent() {
         {loading ? (
           <div className="mt-16 text-center text-sm font-bold text-[#697080]">正在加载套餐...</div>
         ) : (
-          <div className="mx-auto mt-10 grid max-w-[1440px] grid-cols-[repeat(auto-fit,minmax(256px,276px))] justify-center gap-6">
+          <div className="mx-auto mt-10 grid max-w-[1440px] grid-cols-1 justify-center gap-6 sm:grid-cols-[repeat(auto-fit,minmax(276px,300px))]">
             {packages.map((item) => {
               const style = toneStyles[item.tone];
               const Icon = style.icon;
@@ -401,7 +401,7 @@ function PricingContent() {
                 <article
                   key={item.key}
                   data-testid={`package-${item.key}`}
-                  className={`relative flex min-h-[424px] flex-col rounded-[10px] border-2 ${style.ring} bg-white px-7 pb-7 pt-8 shadow-[0_2px_9px_rgba(16,24,39,0.08)]`}
+                  className={`relative mx-auto flex min-h-[424px] w-full max-w-[340px] flex-col rounded-[10px] border-2 ${style.ring} bg-white px-7 pb-7 pt-8 shadow-[0_2px_9px_rgba(16,24,39,0.08)] sm:max-w-none`}
                 >
                   {item.badge && (
                     <div className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full ${style.badge} px-4 py-1.5 text-xs font-black text-white shadow-sm`}>

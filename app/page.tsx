@@ -23,7 +23,7 @@ const featureCards = [
   },
   {
     title: "全能设计",
-    desc: "海报/广告/社媒配图\n一句话生成创意设计",
+    desc: "精修/海报/广告/社媒\n一句话生成创意设计",
     icon: LayoutGrid,
     gradient: "from-teal-500 to-emerald-600",
     glow: "rgba(20,184,166,0.5)",
