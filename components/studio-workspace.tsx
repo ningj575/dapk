@@ -237,12 +237,12 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
         ? {
             badge: "电商主图规划",
             title: "主图生成",
-            subtitle: "AI 智能分析产品风格与文案，一键生成专业主图"
+            subtitle: "智能识别产品视觉风格与宣传文案，一键批量生成平台标准化专业主图"
           }
         : {
             badge: "详情页规划",
             title: "详情图生成",
-            subtitle: "上传产品实拍图，AI 自动理解产品结构与卖点，快速生成多视角、多场景的电商详情图集。 无需设计基础，几分钟内完成从单图到完整详情页的视觉升级。"
+            subtitle: "上传产品实拍图，智能识别产品结构、核心卖点，快速生成多角度、多场景全套详情视觉素材。无需掌握设计技能，短短几分钟一站式完成完整详情页打造。"
           },
     [mode]
   );
