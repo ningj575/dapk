@@ -103,11 +103,9 @@ function CreditContent() {
 
   useEffect(() => {
     const nextType = parseLogType(searchParams.get("type"));
-    if (nextType !== type) {
-      setType(nextType);
-    }
+    setType(nextType);
     setPage(1);
-  }, [searchParams, type]);
+  }, [searchParams]);
 
   const fetchLogs = useCallback(async (signal?: AbortSignal) => {
     if (!token) return;
