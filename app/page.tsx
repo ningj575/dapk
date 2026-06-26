@@ -31,7 +31,7 @@ const featureCards = [
   },
   {
     title: "电商主图",
-    desc: "上传产品实拍图，一键打造高吸引力商品主图\n覆盖国内跨境各大主流电商平台",
+    desc: "一键打造高吸引力商品主图\n覆盖国内跨境各大主流电商平台",
     icon: Camera,
     gradient: "from-blue-500 to-indigo-600",
     glow: "rgba(99,102,241,0.5)",
@@ -39,7 +39,7 @@ const featureCards = [
   },
   {
     title: "电商详情图",
-    desc: "AI 自动搭建全套商品详情页面板块\n卖点、参数、场景素材一次性制作完成",
+    desc: "自动搭建全套商品详情页面板块\n卖点、参数、场景素材一站式生成",
     icon: WandSparkles,
     gradient: "from-violet-500 to-purple-600",
     glow: "rgba(139,92,246,0.5)",
