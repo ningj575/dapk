@@ -208,7 +208,7 @@ export default function Home() {
             type="button"
             onClick={() => openLogin("/watermark-remover")}
           >
-            立即体验
+            {token ? "立即体验" : "免费体验"}
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>

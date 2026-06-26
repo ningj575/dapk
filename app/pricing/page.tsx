@@ -29,6 +29,7 @@ type CreditPackage = {
   badge: string | null;
   tone: "starter" | "basic" | "popular" | "pro" | "business";
   features: string[];
+  is_experience?: boolean;
 };
 
 type PackagePayload = {
@@ -302,7 +303,13 @@ function PricingContent() {
     return () => window.clearTimeout(timer);
   }, [fetchPackages]);
 
-  const packages = useMemo(() => payload?.packages || [], [payload]);
+  const packages = useMemo(() => {
+    const rows = payload?.packages || [];
+    const hasExperience = rows.some((item) => item.is_experience || item.key === "experience");
+    return rows
+      .filter((item) => !(hasExperience && (item.tone === "business" || item.key === "pro" || item.key === "professional")))
+      .slice(0, 4);
+  }, [payload]);
 
   function openPaymentDialog(item: CreditPackage) {
     const firstMethod = paymentMethods[0]?.key;
