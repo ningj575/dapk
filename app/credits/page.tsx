@@ -88,6 +88,14 @@ function displayCreditTitle(log: CreditLog) {
   return log.title === "场景图生成" ? "AI生图" : log.title;
 }
 
+function rechargePackageName(log: CreditLog) {
+  if (log.type !== "recharge") return "";
+  return String(log.remark || "")
+    .replace(/^前台套餐充值[：:\s-]*/u, "")
+    .replace(/^套餐充值[：:\s-]*/u, "")
+    .trim();
+}
+
 function CreditContent() {
   const token = useAuthToken();
   const searchParams = useSearchParams();
@@ -178,7 +186,7 @@ function CreditContent() {
             ) : logs.map((log) => {
               const positive = log.change_amount > 0;
               const Icon = positive ? ArrowDownLeft : ArrowUpRight;
-              const remark = displayCreditRemark(log.remark);
+              const packageName = rechargePackageName(log);
               return (
                 <article key={log.id} className="flex items-center justify-between gap-4 rounded-lg border border-[#e5eaf0] bg-white px-3 py-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -186,11 +194,14 @@ function CreditContent() {
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h2 className="truncate text-base font-normal text-[#0d0d0d]">{displayCreditTitle(log)}</h2>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <h2 className="min-w-0 truncate text-base font-normal text-[#0d0d0d]">
+                          {displayCreditTitle(log)}
+                          {packageName && <span className="ml-1 text-xs text-[#697080]">（{packageName}）</span>}
+                        </h2>
                         {log.type === "refund" && <span className="rounded-full border border-amber-300 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">退还</span>}
                       </div>
-                      <p className="mt-1 truncate text-base font-normal text-[#0d0d0d]">{formatTime(log.created_at)}　{remark}</p>
+                      <p className="mt-1 text-sm font-normal text-[#697080]">{formatTime(log.created_at)}</p>
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
