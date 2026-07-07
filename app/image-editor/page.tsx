@@ -101,6 +101,8 @@ const defaultModels = ["GPT-Image-2", "Nano Banana 2"];
 const defaultImageSizes = ["1K", "2K", "4K"];
 const aspectRatios = ["auto", "1:1", "3:4", "4:3", "16:9", "9:16"];
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const maxReferenceImageSize = 30 * 1024 * 1024;
+const maxReferenceImageSizeText = "30M";
 
 function mediaUrl(src: string) {
   if (!src) return "";
@@ -120,6 +122,30 @@ async function readApi<T>(response: Response): Promise<ApiResponse<T>> {
     throw new Error(payload.message || "请求失败");
   }
   return payload;
+}
+
+async function uploadReferenceImage(file: File, token: string): Promise<UploadItem[]> {
+  const formData = new FormData();
+  formData.append("image", file);
+  try {
+    const response = await fetch(`${apiBase}/api/reference-images`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: formData
+    });
+    const result = await readApi<ReferenceUploadPayload>(response);
+    return (result.data.images || []).map((item, index) => ({
+      id: `${Date.now()}-${file.name}-${index}`,
+      src: mediaUrl(item.url || item.path)
+    }));
+  } catch (event) {
+    if (event instanceof TypeError) {
+      throw new Error("图片上传失败，请检查网络或图片大小后重试");
+    }
+    throw event;
+  }
 }
 
 function AppHeader() {
@@ -278,42 +304,28 @@ function UniversalImageContent() {
     if (!token) return;
     const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
     if (imageFiles.length === 0) return;
+    const oversizedFiles = imageFiles.filter((file) => file.size > maxReferenceImageSize);
+    const validFiles = imageFiles.filter((file) => file.size <= maxReferenceImageSize);
+    if (oversizedFiles.length > 0) {
+      setError(`单张参考图最大 ${maxReferenceImageSizeText}，已跳过 ${oversizedFiles.length} 张超限图片`);
+    }
+    if (validFiles.length === 0) return;
+
     const freeSlots = Math.max(0, 10 - uploadItems.length);
     if (freeSlots === 0) {
       setError("最多上传 10 张图片");
       return;
     }
 
-    const selected = imageFiles.slice(0, freeSlots);
-    if (imageFiles.length > freeSlots) {
+    const selected = validFiles.slice(0, freeSlots);
+    if (validFiles.length > freeSlots) {
       setError("最多上传 10 张图片，已自动保留前 10 张");
     }
 
     setUploadingImages(true);
     try {
-      const dataUrls = await Promise.all(
-        selected.map(
-          (file) =>
-            new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(String(reader.result || ""));
-              reader.readAsDataURL(file);
-            })
-        )
-      );
-      const response = await fetch(`${apiBase}/api/reference-images`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ images: dataUrls })
-      });
-      const result = await readApi<ReferenceUploadPayload>(response);
-      const nextItems = (result.data.images || []).map((item, index) => ({
-        id: `${Date.now()}-${index}`,
-        src: mediaUrl(item.url || item.path)
-      }));
+      const uploaded = await Promise.all(selected.map((file) => uploadReferenceImage(file, token)));
+      const nextItems = uploaded.flat();
       setUploadItems((items) => [...items, ...nextItems]);
     } catch (event) {
       setError(event instanceof Error ? event.message : "图片上传失败");
