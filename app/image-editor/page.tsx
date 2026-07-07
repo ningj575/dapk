@@ -117,7 +117,19 @@ function formatElapsed(seconds?: number) {
 }
 
 async function readApi<T>(response: Response): Promise<ApiResponse<T>> {
-  const payload = (await response.json()) as ApiResponse<T>;
+  const text = await response.text();
+  let payload: ApiResponse<T>;
+  try {
+    payload = JSON.parse(text) as ApiResponse<T>;
+  } catch {
+    if (response.status === 504) {
+      throw new Error("图片上传处理超时，请稍后重试");
+    }
+    if (response.status === 413) {
+      throw new Error("图片过大，单张参考图最大 30M");
+    }
+    throw new Error(response.ok ? "请求失败" : `请求失败（${response.status}）`);
+  }
   if (!response.ok || payload.code !== 0) {
     throw new Error(payload.message || "请求失败");
   }
@@ -146,6 +158,65 @@ async function uploadReferenceImage(file: File, token: string): Promise<UploadIt
     }
     throw event;
   }
+}
+
+function imageBlobFromCanvas(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+      reject(new Error("图片压缩失败"));
+    }, "image/jpeg", quality);
+  });
+}
+
+function loadImageFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("图片读取失败"));
+    };
+    image.src = url;
+  });
+}
+
+async function compressImageFile(file: File): Promise<File> {
+  if (file.size <= maxReferenceImageSize || !file.type.startsWith("image/")) return file;
+
+  const image = await loadImageFile(file);
+  let maxSide = Math.min(4096, Math.max(image.naturalWidth, image.naturalHeight));
+  const qualities = [0.9, 0.82, 0.74, 0.66, 0.58];
+
+  for (let round = 0; round < 4; round += 1) {
+    const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("图片压缩失败");
+    context.drawImage(image, 0, 0, width, height);
+
+    for (const quality of qualities) {
+      const blob = await imageBlobFromCanvas(canvas, quality);
+      if (blob.size <= maxReferenceImageSize || (round === 3 && quality === qualities[qualities.length - 1])) {
+        const filename = file.name.replace(/\.[^.]+$/, "") || "pasted-image";
+        return new File([blob], `${filename}.jpg`, { type: "image/jpeg" });
+      }
+    }
+    maxSide = Math.max(1200, Math.round(maxSide * 0.72));
+  }
+
+  return file;
 }
 
 function AppHeader() {
@@ -344,7 +415,14 @@ function UniversalImageContent() {
   function onInputPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
     const files = Array.from(event.clipboardData.files || []).filter((file) => file.type.startsWith("image/"));
     if (files.length > 0) {
-      void onFilesChange(files);
+      void (async () => {
+        try {
+          const normalizedFiles = await Promise.all(files.map((file) => compressImageFile(file)));
+          void onFilesChange(normalizedFiles);
+        } catch (error) {
+          setError(error instanceof Error ? error.message : "图片读取失败");
+        }
+      })();
     }
   }
 
