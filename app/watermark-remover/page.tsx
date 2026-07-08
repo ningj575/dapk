@@ -6,6 +6,7 @@ import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAut
 import { downloadImage } from "@/lib/download-image";
 import { AlertCircle, Download, ImagePlus, Loader2, Sparkles, Upload, X } from "lucide-react";
 import Link from "next/link";
+import type { DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type ApiResponse<T> = {
@@ -117,6 +118,7 @@ function WatermarkRemoverContent() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   const activeConfig = modelConfigs[0];
   const modelName = activeConfig?.model_name || "Seedream-5.0";
@@ -137,9 +139,13 @@ function WatermarkRemoverContent() {
       .catch(() => setModelConfigs([]));
   }, []);
 
-  async function onFilesChange(files?: FileList | null) {
+  async function uploadSourceImage(files?: FileList | null) {
     const file = files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("请上传图片文件");
+      return;
+    }
     const dataUrl = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result || ""));
@@ -149,6 +155,30 @@ function WatermarkRemoverContent() {
     setResultImage("");
     setError("");
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  async function onFilesChange(files?: FileList | null) {
+    await uploadSourceImage(files);
+  }
+
+  function onDragOver(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(true);
+  }
+
+  function onDragLeave(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setDragActive(false);
+  }
+
+  function onDrop(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
+    void uploadSourceImage(event.dataTransfer.files);
   }
 
   async function pollTask(recordId: number) {
@@ -241,8 +271,12 @@ function WatermarkRemoverContent() {
             <input ref={inputRef} className="hidden" type="file" accept="image/*" onChange={(event) => void onFilesChange(event.target.files)} />
             <button
               type="button"
-              className="flex min-h-[420px] w-full items-center justify-center overflow-hidden rounded-[26px] border-2 border-dashed border-[#ded8cd] bg-[#f4f2ee] p-4 text-center transition hover:border-[#bfb6aa] hover:bg-[#f1eee8] sm:min-h-[520px]"
+              className={`flex min-h-[420px] w-full items-center justify-center overflow-hidden rounded-[26px] border-2 border-dashed p-4 text-center transition sm:min-h-[520px] ${dragActive ? "border-[#101827] bg-[#eeeae2]" : "border-[#ded8cd] bg-[#f4f2ee] hover:border-[#bfb6aa] hover:bg-[#f1eee8]"}`}
               onClick={() => inputRef.current?.click()}
+              onDragEnter={onDragOver}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
             >
               {sourceImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -252,8 +286,8 @@ function WatermarkRemoverContent() {
                   <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#808898] shadow-sm">
                     <Upload className="h-7 w-7" />
                   </span>
-                  <span className="mt-5 text-base font-bold">上传要去水印的图片</span>
-                  <span className="mt-2 text-sm font-semibold text-[#7a8190]">支持 JPG、PNG、WebP</span>
+                  <span className="mt-5 text-base font-bold">{dragActive ? "松开鼠标上传原图" : "上传要去水印的图片"}</span>
+                  <span className="mt-2 text-sm font-semibold text-[#7a8190]">点击或拖拽上传，支持 JPG、PNG、WebP</span>
                 </span>
               )}
             </button>

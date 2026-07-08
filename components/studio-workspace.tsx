@@ -27,7 +27,7 @@ import Link from "next/link";
 import { AccountMenu } from "@/components/account-menu";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
 import { downloadImage } from "@/lib/download-image";
-import type { ReactNode } from "react";
+import type { DragEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type StudioMode = "genesis" | "detail";
@@ -87,7 +87,6 @@ const ratios = {
   detail: ["3:4 竖版", "1:1 方图", "4:5 竖图", "9:16 长图"]
 };
 const languageOptions = [
-  "无文字(纯视觉)",
   "English · 英语",
   "中文",
   "日本語 · 日语",
@@ -665,15 +664,22 @@ function UploadCard({ title, subtitle, items, setItems, token }: { title: string
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [dragActive, setDragActive] = useState(false);
 
-  async function onFilesChange(files?: FileList | null) {
+  async function uploadFiles(files?: FileList | File[] | null) {
     if (!files || files.length === 0 || uploading) return;
     if (!token) {
       setUploadError("请先登录后再上传图片");
       return;
     }
     const freeSlots = Math.max(0, 6 - items.length);
-    const selected = Array.from(files).slice(0, freeSlots);
+    const selected = Array.from(files)
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, freeSlots);
+    if (selected.length === 0) {
+      setUploadError(freeSlots <= 0 ? "最多上传 6 张产品素材" : "请上传图片文件");
+      return;
+    }
     setUploadError("");
     setUploading(true);
     try {
@@ -691,6 +697,30 @@ function UploadCard({ title, subtitle, items, setItems, token }: { title: string
     }
   }
 
+  async function onFilesChange(files?: FileList | null) {
+    await uploadFiles(files);
+  }
+
+  function onDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!uploading) setDragActive(true);
+  }
+
+  function onDragLeave(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setDragActive(false);
+  }
+
+  function onDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
+    void uploadFiles(event.dataTransfer.files);
+  }
+
   return (
     <section className="rounded-[28px] border border-[#ded8cd] bg-white p-6 shadow-[0_1px_2px_rgba(16,24,39,0.03)]">
       <div className="flex items-start justify-between gap-4">
@@ -706,10 +736,14 @@ function UploadCard({ title, subtitle, items, setItems, token }: { title: string
         <span className="text-sm font-semibold text-[#7b8391]">{items.length}/6</span>
       </div>
       <div
-        className="mt-6 min-h-[180px] cursor-pointer rounded-[24px] border-2 border-dashed border-[#ded8cd] bg-[#f4f2ee] px-4 py-6 text-center transition hover:border-[#bfb6aa] hover:bg-[#f1eee8]"
+        className={`mt-6 min-h-[180px] cursor-pointer rounded-[24px] border-2 border-dashed px-4 py-6 text-center transition ${dragActive ? "border-[#101827] bg-[#eeeae2]" : "border-[#ded8cd] bg-[#f4f2ee] hover:border-[#bfb6aa] hover:bg-[#f1eee8]"}`}
         role="button"
         tabIndex={0}
         onClick={() => inputRef.current?.click()}
+        onDragEnter={onDragOver}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
@@ -742,8 +776,9 @@ function UploadCard({ title, subtitle, items, setItems, token }: { title: string
         <div className="flex flex-col items-center justify-center">
           {uploading ? <Loader2 className="h-7 w-7 animate-spin text-[#8b93a1]" /> : <Upload className="h-7 w-7 text-[#8b93a1]" />}
           <p className="mt-4 max-w-[480px] text-sm font-bold leading-7">
-            {uploading ? "图片上传中..." : "多图上传建议仅上传必要的视角或 sku 图，图片不是越多越好"}
+            {uploading ? "图片上传中..." : dragActive ? "松开鼠标上传产品素材" : "点击或拖拽图片到这里上传产品素材"}
           </p>
+          {!uploading && !dragActive && <p className="mt-1 text-xs text-[#8a919e]">最多 6 张，单张最大 30M</p>}
           {uploadError && <p className="mt-3 text-sm font-semibold text-red-600">{uploadError}</p>}
         </div>
       </div>
