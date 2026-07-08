@@ -55,6 +55,9 @@ type ImageTaskStatusPayload = {
   tasks: Array<{ id: number; task_id: string; status: string; image_url?: string; error_message?: string }>;
   user: DakeUser;
 };
+type ReferenceUploadPayload = {
+  images: Array<{ path?: string; url?: string }>;
+};
 type ModelConfig = {
   module: string;
   model_name: string;
@@ -102,6 +105,7 @@ const languageOptions = [
 ];
 const quantityOptions = Array.from({ length: 10 }, (_, index) => `${index + 1} 张`);
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const maxReferenceImageSize = 30 * 1024 * 1024;
 
 function mediaUrl(src: string) {
   if (!src) return "";
@@ -109,8 +113,38 @@ function mediaUrl(src: string) {
   return `${apiBase}${src.startsWith("/") ? src : `/${src}`}`;
 }
 
+async function uploadStudioReferenceImage(file: File, token: string): Promise<string[]> {
+  if (file.size > maxReferenceImageSize) {
+    throw new Error("单张参考图最大 30M");
+  }
+  const formData = new FormData();
+  formData.append("image", file);
+  const response = await fetch(`${apiBase}/api/reference-images`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData
+  });
+  const result = await readApi<ReferenceUploadPayload>(response);
+  return (result.data.images || [])
+    .map((item) => item.url || item.path || "")
+    .filter(Boolean)
+    .map((src) => mediaUrl(src));
+}
+
 async function readApi<T>(response: Response): Promise<ApiResponse<T>> {
-  const payload = (await response.json()) as ApiResponse<T>;
+  const text = await response.text();
+  let payload: ApiResponse<T>;
+  try {
+    payload = JSON.parse(text) as ApiResponse<T>;
+  } catch {
+    if (response.status === 413) {
+      throw new Error("图片过大，单张参考图最大 30M");
+    }
+    if (response.status === 504) {
+      throw new Error("请求处理超时，请稍后重试");
+    }
+    throw new Error(response.ok ? "请求失败" : `请求失败（${response.status}）`);
+  }
   if (!response.ok || payload.code !== 0) {
     throw new Error(payload.message || "请求失败");
   }
@@ -407,6 +441,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
                 subtitle={mode === "genesis" ? "上传清晰、干净、光线稳定的产品图。" : "上传清晰的产品图片"}
                 items={activeUploads}
                 setItems={mode === "genesis" ? setGenesisUploads : setDetailUploads}
+                token={token || ""}
               />
 
               {mode === "genesis" ? (
@@ -560,25 +595,34 @@ function GenesisStepper({ phase }: { phase: StudioPhase }) {
   );
 }
 
-function UploadCard({ title, subtitle, items, setItems }: { title: string; subtitle: string; items: string[]; setItems: (items: string[]) => void }) {
+function UploadCard({ title, subtitle, items, setItems, token }: { title: string; subtitle: string; items: string[]; setItems: (items: string[]) => void; token: string }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   async function onFilesChange(files?: FileList | null) {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || uploading) return;
+    if (!token) {
+      setUploadError("请先登录后再上传图片");
+      return;
+    }
     const freeSlots = Math.max(0, 6 - items.length);
     const selected = Array.from(files).slice(0, freeSlots);
-    const nextItems = await Promise.all(
-      selected.map(
-        (file) =>
-          new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result || ""));
-            reader.readAsDataURL(file);
-          })
-      )
-    );
-    setItems([...items, ...nextItems]);
-    if (inputRef.current) inputRef.current.value = "";
+    setUploadError("");
+    setUploading(true);
+    try {
+      const nextItems: string[] = [];
+      for (const file of selected) {
+        const uploaded = await uploadStudioReferenceImage(file, token);
+        nextItems.push(...uploaded);
+      }
+      setItems([...items, ...nextItems].slice(0, 6));
+    } catch (event) {
+      setUploadError(event instanceof Error ? event.message : "图片上传失败，请稍后重试");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
   }
 
   return (
@@ -630,10 +674,11 @@ function UploadCard({ title, subtitle, items, setItems }: { title: string; subti
           </div>
         )}
         <div className="flex flex-col items-center justify-center">
-          <Upload className="h-7 w-7 text-[#8b93a1]" />
+          {uploading ? <Loader2 className="h-7 w-7 animate-spin text-[#8b93a1]" /> : <Upload className="h-7 w-7 text-[#8b93a1]" />}
           <p className="mt-4 max-w-[480px] text-sm font-bold leading-7">
-            多图上传建议仅上传必要的视角或 sku 图，图片不是越多越好
+            {uploading ? "图片上传中..." : "多图上传建议仅上传必要的视角或 sku 图，图片不是越多越好"}
           </p>
+          {uploadError && <p className="mt-3 text-sm font-semibold text-red-600">{uploadError}</p>}
         </div>
       </div>
     </section>
