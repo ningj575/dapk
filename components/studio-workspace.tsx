@@ -106,6 +106,7 @@ const languageOptions = [
 const quantityOptions = Array.from({ length: 10 }, (_, index) => `${index + 1} 张`);
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 const maxReferenceImageSize = 30 * 1024 * 1024;
+const maxVisionReferenceImageSize = 9.5 * 1024 * 1024;
 
 function mediaUrl(src: string) {
   if (!src) return "";
@@ -113,12 +114,77 @@ function mediaUrl(src: string) {
   return `${apiBase}${src.startsWith("/") ? src : `/${src}`}`;
 }
 
-async function uploadStudioReferenceImage(file: File, token: string): Promise<string[]> {
+function imageBlobFromCanvas(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+      reject(new Error("图片压缩失败"));
+    }, "image/jpeg", quality);
+  });
+}
+
+function loadImageFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("图片读取失败"));
+    };
+    image.src = url;
+  });
+}
+
+async function normalizeStudioReferenceImage(file: File): Promise<File> {
   if (file.size > maxReferenceImageSize) {
     throw new Error("单张参考图最大 30M");
   }
+  if (file.size <= maxVisionReferenceImageSize || !file.type.startsWith("image/")) {
+    return file;
+  }
+
+  const image = await loadImageFile(file);
+  let maxSide = Math.min(4096, Math.max(image.naturalWidth, image.naturalHeight));
+  const qualities = [0.9, 0.82, 0.74, 0.66, 0.58, 0.5];
+  let fallback: File | null = null;
+
+  for (let round = 0; round < 5; round += 1) {
+    const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("图片压缩失败");
+    context.drawImage(image, 0, 0, width, height);
+
+    for (const quality of qualities) {
+      const blob = await imageBlobFromCanvas(canvas, quality);
+      const filename = file.name.replace(/\.[^.]+$/, "") || "reference-image";
+      const compressed = new File([blob], `${filename}.jpg`, { type: "image/jpeg" });
+      fallback = compressed;
+      if (blob.size <= maxVisionReferenceImageSize) {
+        return compressed;
+      }
+    }
+    maxSide = Math.max(1200, Math.round(maxSide * 0.72));
+  }
+
+  return fallback && fallback.size < file.size ? fallback : file;
+}
+
+async function uploadStudioReferenceImage(file: File, token: string): Promise<string[]> {
+  const normalizedFile = await normalizeStudioReferenceImage(file);
   const formData = new FormData();
-  formData.append("image", file);
+  formData.append("image", normalizedFile);
   const response = await fetch(`${apiBase}/api/reference-images`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
