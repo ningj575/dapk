@@ -17,6 +17,7 @@ import {
   Loader2,
   Megaphone,
   Plus,
+  RefreshCw,
   Send,
   Sparkles,
   Upload,
@@ -43,16 +44,17 @@ type MainImagePayload = {
   id: number;
   status?: string;
   images: string[];
-  tasks?: Array<{ id: number; task_id: string; status: string; image_url?: string }>;
+  tasks?: ImageTask[];
   cost_credits: number;
   user: DakeUser;
 };
+type ImageTask = { id: number; task_index: number; task_id: string; status: string; image_url?: string; error_message?: string };
 type ImageTaskStatusPayload = {
   id: number;
   status: string;
   done: boolean;
   images: string[];
-  tasks: Array<{ id: number; task_id: string; status: string; image_url?: string; error_message?: string }>;
+  tasks: ImageTask[];
   user: DakeUser;
 };
 type ReferenceUploadPayload = {
@@ -111,6 +113,16 @@ function mediaUrl(src: string) {
   if (!src) return "";
   if (src.startsWith("data:") || /^https?:\/\//i.test(src)) return src;
   return `${apiBase}${src.startsWith("/") ? src : `/${src}`}`;
+}
+
+function aspectRatioStyle(ratio: string) {
+  const match = String(ratio || "").match(/(\d+)\s*:\s*(\d+)/);
+  return match ? `${match[1]} / ${match[2]}` : "1 / 1";
+}
+
+function orderedTaskSlots(tasks: ImageTask[], quantity: string) {
+  const count = Number.parseInt(quantity, 10) || 1;
+  return Array.from({ length: count }, (_, index) => tasks.find((task) => Number(task.task_index) === index + 1) || null);
 }
 
 function imageBlobFromCanvas(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
@@ -287,9 +299,14 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const [genesisUploads, setGenesisUploads] = useState<string[]>([]);
   const [detailUploads, setDetailUploads] = useState<string[]>([]);
   const [mainImages, setMainImages] = useState<string[]>([]);
+  const [mainTasks, setMainTasks] = useState<ImageTask[]>([]);
+  const [mainRecordId, setMainRecordId] = useState<number | null>(null);
   const [mainError, setMainError] = useState("");
   const [detailImages, setDetailImages] = useState<string[]>([]);
+  const [detailTasks, setDetailTasks] = useState<ImageTask[]>([]);
+  const [detailRecordId, setDetailRecordId] = useState<number | null>(null);
   const [detailError, setDetailError] = useState("");
+  const [retryingTaskId, setRetryingTaskId] = useState<number | null>(null);
   const [detailProductName, setDetailProductName] = useState("");
   const [detailProductDescription, setDetailProductDescription] = useState("");
   const [genesisPhase, setGenesisPhase] = useState<StudioPhase>("idle");
@@ -381,7 +398,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
     setDetailResolution(configuredResolutions(detailConfigs, nextModel)[0] || "标清 1K");
   }
 
-  async function pollImageTasks(recordId: number, setImages: (updater: (current: string[]) => string[]) => void) {
+  async function pollImageTasks(recordId: number, setImages: (updater: (current: string[]) => string[]) => void, setTasks: (tasks: ImageTask[]) => void) {
     const maxAttempts = 180;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       if (attempt > 0) {
@@ -394,15 +411,41 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
       window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
       notifyAuthChanged();
       setImages(() => result.data.images || []);
+      setTasks(result.data.tasks || []);
       if (result.data.done) {
-        const failed = result.data.tasks.filter((task) => task.status === "failed");
-        if (failed.length > 0 && (result.data.images || []).length === 0) {
-          throw new Error(failed[0].error_message || "生成失败");
-        }
         return result.data;
       }
     }
     throw new Error("生成任务仍在处理中，请稍后到生成记录查看结果");
+  }
+
+  async function retryTask(recordId: number | null, taskId: number, setImages: (updater: (current: string[]) => string[]) => void, setTasks: (tasks: ImageTask[]) => void, setPhase: (phase: StudioPhase) => void, setError: (message: string) => void) {
+    if (!token || !recordId || retryingTaskId !== null) return;
+    setRetryingTaskId(taskId);
+    setError("");
+    setPhase("preview");
+    try {
+      const response = await fetch(`${apiBase}/api/image-task-retry`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ task_id: taskId })
+      });
+      const result = await readApi<ImageTaskStatusPayload>(response);
+      window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
+      notifyAuthChanged();
+      setImages(() => result.data.images || []);
+      setTasks(result.data.tasks || []);
+      await pollImageTasks(recordId, setImages, setTasks);
+      setPhase("complete");
+    } catch (event) {
+      setError(event instanceof Error ? event.message : "重新生成失败");
+      setPhase("complete");
+    } finally {
+      setRetryingTaskId(null);
+    }
   }
 
   async function generate() {
@@ -413,6 +456,8 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
       setGenesisPhase("planning");
       setMainError("");
       setMainImages([]);
+      setMainTasks([]);
+      setMainRecordId(null);
 
       try {
         await new Promise((resolve) => window.setTimeout(resolve, 120));
@@ -437,11 +482,17 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
         const result = await readApi<MainImagePayload>(response);
         window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
         notifyAuthChanged();
-        await pollImageTasks(result.data.id, setMainImages);
+        setMainRecordId(result.data.id);
+        setMainTasks(result.data.tasks || []);
+        const finalResult = await pollImageTasks(result.data.id, setMainImages, setMainTasks);
+        if (finalResult.status === "failed" && (finalResult.images || []).length === 0) {
+          const failed = (finalResult.tasks || []).filter((task) => task.status === "failed");
+          setMainError(failed[0]?.error_message || "生成失败");
+        }
         setGenesisPhase("complete");
       } catch (event) {
         setMainError(event instanceof Error ? event.message : "生成失败");
-        setGenesisPhase(mainImages.length > 0 ? "complete" : "idle");
+        setGenesisPhase(mainTasks.length > 0 || mainImages.length > 0 ? "complete" : "idle");
       }
       return;
     }
@@ -449,6 +500,8 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
     setDetailPhase("planning");
     setDetailError("");
     setDetailImages([]);
+    setDetailTasks([]);
+    setDetailRecordId(null);
     try {
       await new Promise((resolve) => window.setTimeout(resolve, 120));
       setDetailPhase("preview");
@@ -473,11 +526,17 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
       const result = await readApi<MainImagePayload>(response);
       window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
       notifyAuthChanged();
-      await pollImageTasks(result.data.id, setDetailImages);
+      setDetailRecordId(result.data.id);
+      setDetailTasks(result.data.tasks || []);
+      const finalResult = await pollImageTasks(result.data.id, setDetailImages, setDetailTasks);
+      if (finalResult.status === "failed" && (finalResult.images || []).length === 0) {
+        const failed = (finalResult.tasks || []).filter((task) => task.status === "failed");
+        setDetailError(failed[0]?.error_message || "生成失败");
+      }
       setDetailPhase("complete");
     } catch (event) {
       setDetailError(event instanceof Error ? event.message : "生成失败");
-      setDetailPhase(detailImages.length > 0 ? "complete" : "idle");
+      setDetailPhase(detailTasks.length > 0 || detailImages.length > 0 ? "complete" : "idle");
     }
   }
 
@@ -561,7 +620,22 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
               />
             </div>
 
-            <ResultPanel mode={mode} phase={activePhase} detailMode={detailMode} quantity={mode === "genesis" ? genesisQuantity : detailQuantity} ratio={activeRatio} model={activeModel} images={mode === "genesis" ? mainImages : detailImages} />
+            <ResultPanel
+              mode={mode}
+              phase={activePhase}
+              detailMode={detailMode}
+              quantity={mode === "genesis" ? genesisQuantity : detailQuantity}
+              ratio={activeRatio}
+              model={activeModel}
+              images={mode === "genesis" ? mainImages : detailImages}
+              tasks={mode === "genesis" ? mainTasks : detailTasks}
+              retryingTaskId={retryingTaskId}
+              onRetryTask={(taskId) =>
+                mode === "genesis"
+                  ? void retryTask(mainRecordId, taskId, setMainImages, setMainTasks, setGenesisPhase, setMainError)
+                  : void retryTask(detailRecordId, taskId, setDetailImages, setDetailTasks, setDetailPhase, setDetailError)
+              }
+            />
           </div>
         </section>
       </main>
@@ -986,20 +1060,48 @@ function ActionPanel({
   );
 }
 
-function ResultPanel({ mode, phase, detailMode, quantity, ratio, model, images }: { mode: StudioMode; phase: string; detailMode: DetailMode; quantity: string; ratio: string; model: string; images: string[] }) {
-  const hasOutput = images.length > 0 || phase === "complete";
+function ResultPanel({
+  mode,
+  phase,
+  detailMode,
+  quantity,
+  ratio,
+  images,
+  tasks,
+  retryingTaskId,
+  onRetryTask
+}: {
+  mode: StudioMode;
+  phase: string;
+  detailMode: DetailMode;
+  quantity: string;
+  ratio: string;
+  model: string;
+  images: string[];
+  tasks: ImageTask[];
+  retryingTaskId: number | null;
+  onRetryTask: (taskId: number) => void;
+}) {
+  const successfulImages = tasks.length > 0
+    ? tasks
+        .slice()
+        .sort((a, b) => Number(a.task_index) - Number(b.task_index))
+        .map((task) => task.image_url || "")
+        .filter(Boolean)
+    : images;
+  const hasOutput = successfulImages.length > 0 || tasks.length > 0 || phase === "complete";
   const [detailPreviewOpen, setDetailPreviewOpen] = useState(false);
   function downloadAllImages() {
-    images.forEach((image, index) => {
+    successfulImages.forEach((image, index) => {
       window.setTimeout(() => {
         void downloadImage(mediaUrl(image), `dake-${mode === "genesis" ? "main" : "detail"}-image-${index + 1}.png`);
       }, index * 120);
     });
   }
   async function downloadStitchedImage() {
-    if (images.length === 0) return;
+    if (successfulImages.length === 0) return;
     const loaded = await Promise.all(
-      images.map(
+      successfulImages.map(
         (src) =>
           new Promise<HTMLImageElement>((resolve, reject) => {
             const image = new Image();
@@ -1036,8 +1138,8 @@ function ResultPanel({ mode, phase, detailMode, quantity, ratio, model, images }
           </div>
           {mode !== "genesis" && (
             <div className="flex w-full gap-2 sm:w-auto sm:shrink-0">
-              <button className="studio-tool-btn min-w-[112px] flex-1 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none" type="button" disabled={images.length === 0} onClick={() => setDetailPreviewOpen(true)}><Images className="h-4 w-4" />拼接预览</button>
-              <button className="studio-tool-btn min-w-[92px] flex-1 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none" type="button" disabled={images.length === 0} onClick={downloadAllImages}><Download className="h-4 w-4" />下载</button>
+              <button className="studio-tool-btn min-w-[112px] flex-1 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none" type="button" disabled={successfulImages.length === 0} onClick={() => setDetailPreviewOpen(true)}><Images className="h-4 w-4" />拼接预览</button>
+              <button className="studio-tool-btn min-w-[92px] flex-1 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none" type="button" disabled={successfulImages.length === 0} onClick={downloadAllImages}><Download className="h-4 w-4" />下载</button>
             </div>
           )}
         </div>
@@ -1051,8 +1153,8 @@ function ResultPanel({ mode, phase, detailMode, quantity, ratio, model, images }
           </div>
         )}
 
-        {mode === "genesis" && phase !== "idle" && <GenesisResult quantity={quantity} images={images} phase={phase} />}
-        {mode !== "genesis" && phase !== "idle" && <DetailResult quantity={quantity} images={images} phase={phase} onOpenPreview={() => setDetailPreviewOpen(true)} />}
+        {mode === "genesis" && phase !== "idle" && <GenesisResult quantity={quantity} ratio={ratio} images={images} tasks={tasks} phase={phase} retryingTaskId={retryingTaskId} onRetryTask={onRetryTask} />}
+        {mode !== "genesis" && phase !== "idle" && <DetailResult quantity={quantity} ratio={ratio} images={images} tasks={tasks} phase={phase} retryingTaskId={retryingTaskId} onRetryTask={onRetryTask} onOpenPreview={() => setDetailPreviewOpen(true)} />}
         {detailPreviewOpen && (
           <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#101827]/55 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true">
             <div className="flex max-h-[68vh] w-full max-w-[460px] flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_24px_80px_-36px_rgba(0,0,0,0.55)]">
@@ -1067,10 +1169,10 @@ function ResultPanel({ mode, phase, detailMode, quantity, ratio, model, images }
               </div>
               <div className="max-h-[40vh] overflow-y-auto bg-[#f6f3ed] p-4">
                 <div className="mx-auto max-w-[260px] overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-white shadow-[0_18px_50px_-32px_rgba(16,24,39,0.4)]">
-                  {images.map((image, index) => (
+                  {successfulImages.map((image, index) => (
                     <div key={`${image}-stitched-preview-${index}`} className="border-b border-[#ebe5da] last:border-b-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img className="aspect-[3/4] w-full object-cover" src={mediaUrl(image)} alt={`详情图拼接预览 ${index + 1}`} />
+                      <img className="w-full bg-[#f7f5f1] object-contain" style={{ aspectRatio: aspectRatioStyle(ratio) }} src={mediaUrl(image)} alt={`详情图拼接预览 ${index + 1}`} />
                     </div>
                   ))}
                 </div>
@@ -1120,44 +1222,43 @@ function GeneratingState({ mode, count }: { mode: StudioMode; count: number }) {
   );
 }
 
-function GenesisResult({ quantity, images, phase }: { quantity: string; images: string[]; phase: string }) {
+function GenesisResult({ quantity, ratio, images, tasks, phase, retryingTaskId, onRetryTask }: { quantity: string; ratio: string; images: string[]; tasks: ImageTask[]; phase: string; retryingTaskId: number | null; onRetryTask: (taskId: number) => void }) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const count = Number.parseInt(quantity, 10) || 1;
-  const displayImages = images.map((image) => mediaUrl(image));
+  const slots = tasks.length > 0 ? orderedTaskSlots(tasks, quantity) : [];
+  const successfulImages = slots.length > 0
+    ? slots.map((task) => task?.image_url || "").filter(Boolean)
+    : images;
+  const displayImages = successfulImages.map((image) => mediaUrl(image));
   const activePreview = previewIndex === null ? "" : displayImages[previewIndex] || "";
   const isGenerating = phase === "planning" || phase === "preview";
   const movePreview = (step: number) => {
     setPreviewIndex((current) => {
-      if (current === null || images.length === 0) return current;
-      return (current + step + images.length) % images.length;
+      if (current === null || displayImages.length === 0) return current;
+      return (current + step + displayImages.length) % displayImages.length;
     });
   };
 
-  if (images.length > 0) {
+  if (slots.length > 0) {
     return (
       <>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {images.map((image, index) => {
-            const displayImage = displayImages[index] || mediaUrl(image);
+          {slots.map((task, index) => {
+            const displayImage = task?.image_url ? mediaUrl(task.image_url) : "";
+            const previewSlotIndex = displayImage ? displayImages.indexOf(displayImage) : -1;
             return (
-            <div key={`${image}-${index}`} className="group relative overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-[#f6f3ed]">
-              <button className="block aspect-square w-full p-4" type="button" onClick={() => setPreviewIndex(index)} aria-label={`预览主图 ${index + 1}`}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="h-full w-full rounded-[18px] object-cover" src={displayImage} alt={`主图结果 ${index + 1}`} />
-              </button>
-              <button className="absolute bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#101827] opacity-0 shadow-[0_10px_24px_-14px_rgba(16,24,39,0.65)] transition hover:bg-[#101827] hover:text-white group-hover:opacity-100" type="button" onClick={(event) => { event.stopPropagation(); void downloadImage(displayImage, `dake-main-image-${index + 1}.png`); }} aria-label="下载图片">
-                <Download className="h-4 w-4" />
-              </button>
-            </div>
-            );
-          })}
-          {Array.from({ length: Math.max(0, count - images.length) }).map((_, slotIndex) => {
-            const index = images.length + slotIndex;
-            const activeLoading = isGenerating;
-            return (
-              <div key={`main-image-loading-${index}`} className="overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-[#f6f3ed]">
-                <MainImageProgressSlot active={activeLoading} index={index} />
-              </div>
+              <ResultSlot
+                key={task ? task.id : `main-slot-${index}`}
+                mode="genesis"
+                index={index}
+                ratio={ratio}
+                task={task}
+                image={displayImage}
+                active={isGenerating}
+                retrying={retryingTaskId === task?.id}
+                onRetry={() => task && onRetryTask(task.id)}
+                onPreview={displayImage && previewSlotIndex >= 0 ? () => setPreviewIndex(previewSlotIndex) : undefined}
+              />
             );
           })}
         </div>
@@ -1165,7 +1266,7 @@ function GenesisResult({ quantity, images, phase }: { quantity: string; images: 
           <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#07101f]/75 px-4 py-8 backdrop-blur-sm" role="dialog" aria-modal="true">
             <div className="relative flex max-h-full w-full max-w-[980px] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-[#e7ecf0] px-5 py-4">
-                <p className="text-sm font-bold text-[#5f6674]">{previewIndex! + 1} / {images.length}</p>
+                <p className="text-sm font-bold text-[#5f6674]">{previewIndex! + 1} / {displayImages.length}</p>
                 <div className="flex items-center gap-2">
                   <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#101827] text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(activePreview, `dake-main-image-${previewIndex! + 1}.png`)} aria-label="下载图片">
                     <Download className="h-4 w-4" />
@@ -1176,14 +1277,14 @@ function GenesisResult({ quantity, images, phase }: { quantity: string; images: 
                 </div>
               </div>
               <div className="relative flex min-h-0 flex-1 items-center justify-center bg-[#f4f8fb] p-4">
-                {images.length > 1 && (
+                {displayImages.length > 1 && (
                   <button className="absolute left-5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-[#101827] shadow-lg transition hover:bg-[#101827] hover:text-white" type="button" onClick={() => movePreview(-1)} aria-label="上一张">
                     <ChevronLeft className="h-5 w-5" />
                   </button>
                 )}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img className="max-h-[76vh] w-auto max-w-full rounded-2xl object-contain shadow-sm" src={activePreview} alt="主图预览" />
-                {images.length > 1 && (
+                {displayImages.length > 1 && (
                   <button className="absolute right-5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-[#101827] shadow-lg transition hover:bg-[#101827] hover:text-white" type="button" onClick={() => movePreview(1)} aria-label="下一张">
                     <ChevronRight className="h-5 w-5" />
                   </button>
@@ -1196,96 +1297,93 @@ function GenesisResult({ quantity, images, phase }: { quantity: string; images: 
     );
   }
   return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-[#f6f3ed]">
-          <MainImageProgressSlot active={isGenerating} index={index} />
-        </div>
+        <ResultSlot key={index} mode="genesis" index={index} ratio={ratio} task={null} image="" active={isGenerating} retrying={false} />
       ))}
     </div>
   );
 }
 
-function MainImageProgressSlot({ active, index }: { active: boolean; index: number }) {
-  return (
-    <div className="aspect-square p-4">
-      <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[18px] bg-gradient-to-br from-[#fffdf9] via-[#f4f1ea] to-[#ebe3d8]">
-        {active ? (
-          <div className="flex flex-col items-center gap-4 text-[#101827]">
-            <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_18px_42px_-24px_rgba(16,24,39,0.55)]">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </span>
-            <span className="text-sm font-semibold text-[#697080]">正在生成第 {index + 1} 张</span>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3 text-[#8f97a5]">
-            <ImagePlus className="h-9 w-9" />
-            <span className="text-sm font-semibold">等待生成</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DetailResult({ quantity, images, phase, onOpenPreview }: { quantity: string; images: string[]; phase: string; onOpenPreview: () => void }) {
+function DetailResult({ quantity, ratio, images, tasks, phase, retryingTaskId, onRetryTask, onOpenPreview }: { quantity: string; ratio: string; images: string[]; tasks: ImageTask[]; phase: string; retryingTaskId: number | null; onRetryTask: (taskId: number) => void; onOpenPreview: () => void }) {
   const count = Number.parseInt(quantity, 10) || 1;
   const isGenerating = phase === "planning" || phase === "preview";
-  const displayImages = images.map((image) => mediaUrl(image));
+  const slots = tasks.length > 0 ? orderedTaskSlots(tasks, quantity) : [];
   return (
     <div className="space-y-4">
       {isGenerating && <p className="text-sm font-semibold text-[#697080]">预计 {detailImageEstimate(count)}</p>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {images.map((image, index) => {
-          const displayImage = displayImages[index] || mediaUrl(image);
-          return (
-          <div key={`${image}-detail-card-${index}`} className="group relative overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-[#f6f3ed]">
-            <button className="block aspect-[3/4] w-full p-4" type="button" onClick={onOpenPreview} aria-label={`查看详情图 ${index + 1}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="h-full w-full rounded-[18px] object-cover" src={displayImage} alt={`详情图结果 ${index + 1}`} />
-            </button>
-            <button className="absolute bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#101827] opacity-0 shadow-[0_10px_24px_-14px_rgba(16,24,39,0.65)] transition hover:bg-[#101827] hover:text-white group-hover:opacity-100" type="button" onClick={(event) => { event.stopPropagation(); void downloadImage(displayImage, `dake-detail-image-${index + 1}.png`); }} aria-label="下载图片">
-              <Download className="h-4 w-4" />
-            </button>
-          </div>
-          );
-        })}
-        {Array.from({ length: Math.max(0, count - images.length) }).map((_, slotIndex) => {
-          const index = images.length + slotIndex;
-          const activeLoading = isGenerating;
-          return (
-            <div key={`detail-image-loading-${index}`} className="overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-[#f6f3ed]">
-              <DetailImageProgressSlot active={activeLoading} index={index} />
-            </div>
-          );
-        })}
+        {(slots.length > 0 ? slots : Array.from({ length: count }, () => null)).map((task, index) => (
+          <ResultSlot
+            key={task ? task.id : `detail-slot-${index}`}
+            mode="detail"
+            index={index}
+            ratio={ratio}
+            task={task}
+            image={task?.image_url ? mediaUrl(task.image_url) : slots.length === 0 && images[index] ? mediaUrl(images[index]) : ""}
+            active={isGenerating}
+            retrying={retryingTaskId === task?.id}
+            onRetry={() => task && onRetryTask(task.id)}
+            onPreview={task?.image_url ? onOpenPreview : undefined}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-function DetailImageProgressSlot({ active, index }: { active: boolean; index: number }) {
+function ResultSlot({ mode, index, ratio, task, image, active, retrying, onRetry, onPreview }: { mode: StudioMode; index: number; ratio: string; task: ImageTask | null; image: string; active: boolean; retrying: boolean; onRetry?: () => void; onPreview?: () => void }) {
+  const failed = task?.status === "failed";
+  const waiting = !image && !failed;
   return (
-    <div className="aspect-[3/4] p-4">
-      <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[18px] bg-gradient-to-br from-[#fffdf9] via-[#f4f1ea] to-[#ebe3d8]">
-        {active ? (
-          <div className="flex flex-col items-center gap-4 text-[#101827]">
-            <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_18px_42px_-24px_rgba(16,24,39,0.55)]">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </span>
-            <span className="text-sm font-semibold text-[#697080]">正在生成第 {index + 1} 张</span>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3 text-[#8f97a5]">
-            <ImagePlus className="h-9 w-9" />
-            <span className="text-sm font-semibold">等待生成</span>
-          </div>
-        )}
+    <div className="group relative overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-[#f6f3ed]">
+      <div className="p-4" style={{ aspectRatio: aspectRatioStyle(ratio) }}>
+        <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[18px] bg-gradient-to-br from-[#fffdf9] via-[#f4f1ea] to-[#ebe3d8]">
+          {image ? (
+            <>
+              <button className="block h-full w-full" type="button" onClick={onPreview} aria-label={`预览${mode === "genesis" ? "主图" : "详情图"} ${index + 1}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="h-full w-full object-contain" src={image} alt={`${mode === "genesis" ? "主图" : "详情图"}结果 ${index + 1}`} />
+              </button>
+              <button className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#101827] opacity-0 shadow-[0_10px_24px_-14px_rgba(16,24,39,0.65)] transition hover:bg-[#101827] hover:text-white group-hover:opacity-100" type="button" onClick={(event) => { event.stopPropagation(); void downloadImage(image, `dake-${mode === "genesis" ? "main" : "detail"}-image-${index + 1}.png`); }} aria-label="下载图片">
+                <Download className="h-4 w-4" />
+              </button>
+            </>
+          ) : failed ? (
+            <div className="flex h-full w-full flex-col items-center justify-center px-5 text-center">
+              <X className="h-9 w-9 text-red-500" />
+              <p className="mt-3 text-sm font-bold text-red-600">第 {index + 1} 张生成失败</p>
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#7d8492]">{task?.error_message || "第三方接口生成失败"}</p>
+              <button className="mt-4 inline-flex h-9 items-center gap-2 rounded-full bg-[#101827] px-4 text-sm font-bold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55" type="button" disabled={retrying} onClick={onRetry}>
+                {retrying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                重新生成
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4 text-[#101827]">
+              {active || waiting ? (
+                <>
+                  <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_18px_42px_-24px_rgba(16,24,39,0.55)]">
+                    <Loader2 className={`h-8 w-8 ${active ? "animate-spin" : ""}`} />
+                  </span>
+                  <span className="text-sm font-semibold text-[#697080]">{active ? `正在生成第 ${index + 1} 张` : "等待生成"}</span>
+                </>
+              ) : (
+                <>
+                  <ImagePlus className="h-9 w-9 text-[#8f97a5]" />
+                  <span className="text-sm font-semibold text-[#8f97a5]">等待生成</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+      {task && !image && !failed && (
+        <div className="border-t border-[#e6ded2] px-4 py-2 text-xs font-semibold text-[#7d8492]">任务状态：{task.status || "pending"}</div>
+      )}
     </div>
   );
 }
-
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="block min-w-0 max-w-full">

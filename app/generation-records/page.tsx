@@ -108,7 +108,8 @@ function recordMedia(record: GenerationRecord) {
 
 function isFailedImageRecord(record: GenerationRecord) {
   const isVideo = record.media_type === "video" || record.type === "video_generation";
-  return !isVideo && String(record.status || "").toLowerCase() === "failed";
+  const hasImages = splitMediaUrls(record.media_url || record.image_url || "").length > 0;
+  return !isVideo && String(record.status || "").toLowerCase() === "failed" && !hasImages;
 }
 
 function splitMediaUrls(value: string) {
