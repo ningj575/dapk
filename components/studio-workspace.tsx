@@ -83,8 +83,8 @@ const navItems = [
 
 const defaultModelOptions = ["GPT Image 2", "Nano Banana 2"];
 const ratios = {
-  genesis: ["1:1 方图", "2:3 竖版", "3:2 横版", "3:4 竖版", "4:3 横版", "4:5 竖版", "5:4 横版", "9:16 长图"],
-  detail: ["3:4 竖版", "1:1 方图", "4:5 竖图", "9:16 长图"]
+  genesis: ["1:1 方图", "2:3 竖版", "3:2 横版", "3:4 竖版", "4:3 横版", "16:9 宽图", "4:5 竖版", "5:4 横版", "9:16 长图"],
+  detail: ["3:4 竖版", "1:1 方图", "16:9 宽图", "4:5 竖图", "9:16 长图"]
 };
 const languageOptions = [
   "English · 英语",
