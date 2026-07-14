@@ -441,7 +441,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
       await pollImageTasks(recordId, setImages, setTasks);
       setPhase("complete");
     } catch (event) {
-      setError(event instanceof Error ? event.message : "重新生成失败");
+      setError("生成失败");
       setPhase("complete");
     } finally {
       setRetryingTaskId(null);
@@ -486,12 +486,11 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
         setMainTasks(result.data.tasks || []);
         const finalResult = await pollImageTasks(result.data.id, setMainImages, setMainTasks);
         if (finalResult.status === "failed" && (finalResult.images || []).length === 0) {
-          const failed = (finalResult.tasks || []).filter((task) => task.status === "failed");
-          setMainError(failed[0]?.error_message || "生成失败");
+          setMainError("生成失败");
         }
         setGenesisPhase("complete");
       } catch (event) {
-        setMainError(event instanceof Error ? event.message : "生成失败");
+        setMainError("生成失败");
         setGenesisPhase(mainTasks.length > 0 || mainImages.length > 0 ? "complete" : "idle");
       }
       return;
@@ -530,12 +529,11 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
       setDetailTasks(result.data.tasks || []);
       const finalResult = await pollImageTasks(result.data.id, setDetailImages, setDetailTasks);
       if (finalResult.status === "failed" && (finalResult.images || []).length === 0) {
-        const failed = (finalResult.tasks || []).filter((task) => task.status === "failed");
-        setDetailError(failed[0]?.error_message || "生成失败");
+        setDetailError("生成失败");
       }
       setDetailPhase("complete");
     } catch (event) {
-      setDetailError(event instanceof Error ? event.message : "生成失败");
+      setDetailError("生成失败");
       setDetailPhase(detailTasks.length > 0 || detailImages.length > 0 ? "complete" : "idle");
     }
   }
@@ -1353,7 +1351,7 @@ function ResultSlot({ mode, index, ratio, task, image, active, retrying, onRetry
             <div className="flex h-full w-full flex-col items-center justify-center px-5 text-center">
               <X className="h-9 w-9 text-red-500" />
               <p className="mt-3 text-sm font-bold text-red-600">第 {index + 1} 张生成失败</p>
-              <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#7d8492]">{task?.error_message || "第三方接口生成失败"}</p>
+              <p className="mt-2 text-xs leading-5 text-[#7d8492]">生成失败</p>
               <button className="mt-4 inline-flex h-9 items-center gap-2 rounded-full bg-[#101827] px-4 text-sm font-bold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55" type="button" disabled={retrying} onClick={onRetry}>
                 {retrying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 重新生成
