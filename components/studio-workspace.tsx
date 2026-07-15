@@ -1154,8 +1154,8 @@ function ResultPanel({
         {mode === "genesis" && phase !== "idle" && <GenesisResult quantity={quantity} ratio={ratio} images={images} tasks={tasks} phase={phase} retryingTaskId={retryingTaskId} onRetryTask={onRetryTask} />}
         {mode !== "genesis" && phase !== "idle" && <DetailResult quantity={quantity} ratio={ratio} images={images} tasks={tasks} phase={phase} retryingTaskId={retryingTaskId} onRetryTask={onRetryTask} onOpenPreview={() => setDetailPreviewOpen(true)} />}
         {detailPreviewOpen && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#101827]/55 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true">
-            <div className="flex max-h-[68vh] w-full max-w-[460px] flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_24px_80px_-36px_rgba(0,0,0,0.55)]">
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#07101f]/75 px-4 py-8 backdrop-blur-sm" role="dialog" aria-modal="true">
+            <div className="flex max-h-full w-full max-w-[980px] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
               <div className="flex items-center justify-between gap-4 border-b border-[#ebe5da] px-5 py-4">
                 <div>
                   <h3 className="font-extrabold">拼接预览</h3>
@@ -1165,8 +1165,8 @@ function ResultPanel({
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="max-h-[40vh] overflow-y-auto bg-[#f6f3ed] p-4">
-                <div className="mx-auto max-w-[260px] overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-white shadow-[0_18px_50px_-32px_rgba(16,24,39,0.4)]">
+              <div className="max-h-[76vh] overflow-y-auto bg-[#f4f8fb] p-4">
+                <div className="mx-auto max-w-[560px] overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-white shadow-[0_18px_50px_-32px_rgba(16,24,39,0.4)]">
                   {successfulImages.map((image, index) => (
                     <div key={`${image}-stitched-preview-${index}`} className="border-b border-[#ebe5da] last:border-b-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1376,9 +1376,6 @@ function ResultSlot({ mode, index, ratio, task, image, active, retrying, onRetry
           )}
         </div>
       </div>
-      {task && !image && !failed && (
-        <div className="border-t border-[#e6ded2] px-4 py-2 text-xs font-semibold text-[#7d8492]">任务状态：{task.status || "pending"}</div>
-      )}
     </div>
   );
 }
