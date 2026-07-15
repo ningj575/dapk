@@ -20,6 +20,7 @@ type Message = {
   role: "user" | "assistant";
   text: string;
   images?: string[];
+  aspectRatio?: string;
   elapsedSeconds?: number;
   status?: "loading" | "done";
 };
@@ -71,6 +72,7 @@ type GenerationRecord = {
   image_url?: string;
   media_url?: string;
   uploaded_image_paths?: string;
+  aspect_ratio?: string;
   cost_credits?: number;
   created_at?: string;
 };
@@ -103,6 +105,12 @@ const aspectRatios = ["auto", "1:1", "3:4", "4:3", "16:9", "9:16"];
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 const maxReferenceImageSize = 30 * 1024 * 1024;
 const maxReferenceImageSizeText = "30M";
+
+function aspectRatioStyle(value?: string) {
+  const match = String(value || "").match(/(\d+)\s*:\s*(\d+)/);
+  if (!match) return undefined;
+  return `${match[1]} / ${match[2]}`;
+}
 
 function mediaUrl(src: string) {
   if (!src) return "";
@@ -294,6 +302,7 @@ function recordsToMessages(records: GenerationRecord[]): Message[] {
         role: "assistant",
         text: "",
         images: outputPaths,
+        aspectRatio: record.aspect_ratio || "auto",
         status: "done"
       };
       return [userMessage, assistantMessage];
@@ -501,6 +510,7 @@ function UniversalImageContent() {
       id: loadingMessageId,
       role: "assistant",
       text: "",
+      aspectRatio,
       status: "loading"
     };
     setMessages((items) => [...items, userMessage, loadingMessage]);
@@ -730,6 +740,7 @@ function AssistantMessageContent({
       ) : null}
       <ImagePreview
         images={message.images}
+        aspectRatio={message.aspectRatio}
         messageId={message.id}
         selectedIndex={selectedIndex}
         canDownload={false}
@@ -786,6 +797,7 @@ function GenerationLoadingCard() {
 
 function ImagePreview({
   images,
+  aspectRatio,
   messageId,
   selectedIndex,
   canDownload,
@@ -793,6 +805,7 @@ function ImagePreview({
   onOpen
 }: {
   images: string[];
+  aspectRatio?: string;
   messageId: number;
   selectedIndex: number;
   canDownload: boolean;
@@ -801,13 +814,15 @@ function ImagePreview({
 }) {
   const activeIndex = Math.min(selectedIndex, images.length - 1);
   const activeImage = images[activeIndex] || images[0];
+  const imageAspectRatio = aspectRatioStyle(aspectRatio);
+  const previewWidthClass = aspectRatio === "9:16" ? "max-w-[360px]" : aspectRatio === "16:9" ? "max-w-[640px]" : "max-w-[520px]";
 
   return (
-    <div data-testid="image-preview" className={`grid gap-3 ${images.length > 1 ? "max-w-[560px] md:grid-cols-[minmax(0,480px)_64px]" : "max-w-[420px]"}`}>
+    <div data-testid="image-preview" className={`grid gap-3 ${images.length > 1 ? "max-w-[680px] md:grid-cols-[minmax(0,560px)_64px]" : previewWidthClass}`}>
       <div className="overflow-hidden rounded-[14px] border border-[#ded8cd] bg-white shadow-sm">
         <button type="button" className="block w-full" onClick={() => onOpen(activeImage)} aria-label="放大查看图片">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={activeImage} alt={`预览图 ${activeIndex + 1}`} className="aspect-square w-full object-cover" />
+          <img src={activeImage} alt={`预览图 ${activeIndex + 1}`} className={`${imageAspectRatio ? "" : "max-h-[70vh]"} w-full bg-[#f6f5f3] object-contain`} style={imageAspectRatio ? { aspectRatio: imageAspectRatio } : undefined} />
         </button>
         {canDownload && (
           <button
@@ -835,7 +850,7 @@ function ImagePreview({
               aria-label={`预览第 ${index + 1} 张图`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={`缩略图 ${index + 1}`} className="aspect-square w-full object-cover" />
+              <img src={src} alt={`缩略图 ${index + 1}`} className="w-full bg-[#f6f5f3] object-contain" style={imageAspectRatio ? { aspectRatio: imageAspectRatio } : { aspectRatio: "1 / 1" }} />
             </button>
           ))}
         </div>
