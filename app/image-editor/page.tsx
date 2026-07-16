@@ -4,7 +4,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken } from "@/components/auth-state";
 import { downloadImage } from "@/lib/download-image";
-import { ChevronDown, Download, Loader2, Plus, Send, Sparkles, X } from "lucide-react";
+import { ChevronDown, Download, Loader2, Plus, RefreshCw, Send, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import type { ClipboardEvent, DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,14 +15,23 @@ type ApiResponse<T> = {
   data: T;
 };
 
+type GenerationRequest = {
+  prompt: string;
+  model: string;
+  resolution: string;
+  aspectRatio: string;
+  images: string[];
+};
+
 type Message = {
   id: number;
   role: "user" | "assistant";
   text: string;
   images?: string[];
   aspectRatio?: string;
+  retryRequest?: GenerationRequest;
   elapsedSeconds?: number;
-  status?: "loading" | "done";
+  status?: "loading" | "done" | "failed";
 };
 
 type UploadItem = {
@@ -490,33 +499,29 @@ function UniversalImageContent() {
     throw new Error("生成任务仍在处理中，请稍后到生成记录查看结果");
   }
 
-  async function generate() {
-    const cleanPrompt = prompt.trim();
-    if (!cleanPrompt || generating || !token) return;
+  async function submitGeneration(request: GenerationRequest) {
+    if (!request.prompt || generating || !token) return;
 
     setGenerating(true);
     setError("");
     const startedAt = Date.now();
-    const referenceImages = uploadItems.map((item) => item.src);
     const messageId = Date.now();
     const loadingMessageId = messageId + 1;
     const userMessage: Message = {
       id: messageId,
       role: "user",
-      text: cleanPrompt,
-      images: referenceImages
+      text: request.prompt,
+      images: request.images
     };
     const loadingMessage: Message = {
       id: loadingMessageId,
       role: "assistant",
       text: "",
-      aspectRatio,
+      aspectRatio: request.aspectRatio,
+      retryRequest: request,
       status: "loading"
     };
     setMessages((items) => [...items, userMessage, loadingMessage]);
-    setPrompt("");
-    setUploadItems([]);
-    if (inputRef.current) inputRef.current.value = "";
 
     try {
       const response = await fetch(`${apiBase}/api/universal-image`, {
@@ -526,13 +531,13 @@ function UniversalImageContent() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          prompt: cleanPrompt,
-          model,
-          resolution: activeImageSize,
-          size: aspectRatio,
+          prompt: request.prompt,
+          model: request.model,
+          resolution: request.resolution,
+          size: request.aspectRatio,
           count,
-          reference_count: referenceImages.length,
-          images: referenceImages
+          reference_count: request.images.length,
+          images: request.images
         })
       });
       const result = await readApi<UniversalImagePayload>(response);
@@ -564,11 +569,37 @@ function UniversalImageContent() {
         )
       );
     } catch (event) {
-      setMessages((items) => items.filter((message) => message.id !== loadingMessageId));
-      setError(event instanceof Error ? event.message : "生成失败");
+      setMessages((items) =>
+        items.map((message) =>
+          message.id === loadingMessageId
+            ? {
+                ...message,
+                status: "failed",
+                images: [],
+                elapsedSeconds: Math.max(1, Math.round((Date.now() - startedAt) / 1000))
+              }
+            : message
+        )
+      );
     } finally {
       setGenerating(false);
     }
+  }
+
+  async function generate() {
+    const cleanPrompt = prompt.trim();
+    if (!cleanPrompt || generating || !token) return;
+    const request: GenerationRequest = {
+      prompt: cleanPrompt,
+      model,
+      resolution: activeImageSize,
+      aspectRatio,
+      images: uploadItems.map((item) => item.src)
+    };
+    setPrompt("");
+    setUploadItems([]);
+    if (inputRef.current) inputRef.current.value = "";
+    await submitGeneration(request);
   }
 
   return (
@@ -598,6 +629,7 @@ function UniversalImageContent() {
                     selectedIndex={previewByMessage[message.id] || 0}
                     onSelect={(index) => setPreviewByMessage((current) => ({ ...current, [message.id]: index }))}
                     onPreview={setLightboxImage}
+                    onRetry={(request) => void submitGeneration(request)}
                   />
                 )}
               </article>
@@ -718,15 +750,21 @@ function AssistantMessageContent({
   message,
   selectedIndex,
   onSelect,
-  onPreview
+  onPreview,
+  onRetry
 }: {
   message: Message;
   selectedIndex: number;
   onSelect: (index: number) => void;
   onPreview: (src: string) => void;
+  onRetry: (request: GenerationRequest) => void;
 }) {
   if (message.status === "loading") {
     return <GenerationLoadingCard />;
+  }
+
+  if (message.status === "failed") {
+    return <GenerationLoadingCard failed onRetry={message.retryRequest ? () => onRetry(message.retryRequest as GenerationRequest) : undefined} />;
   }
 
   if (!message.images || message.images.length === 0) {
@@ -751,7 +789,7 @@ function AssistantMessageContent({
   );
 }
 
-function GenerationLoadingCard() {
+function GenerationLoadingCard({ failed = false, onRetry }: { failed?: boolean; onRetry?: () => void }) {
   const dots = Array.from({ length: 126 }, (_, index) => {
     const col = index % 14;
     const row = Math.floor(index / 14);
@@ -763,18 +801,24 @@ function GenerationLoadingCard() {
 
   return (
     <div className="w-[min(480px,calc(100vw-32px))]">
-      <p className="mb-4 text-sm font-semibold text-[#697080]">正在生成更细致的图片，请稍候。</p>
+      <p className={`mb-4 text-sm font-semibold ${failed ? "text-red-600" : "text-[#697080]"}`}>{failed ? "生图失败" : "正在生成更细致的图片，请稍候。"}</p>
       <div className="overflow-hidden rounded-[28px] bg-[#f2f2f1] px-6 py-8 shadow-sm">
         <div className="grid gap-x-5 gap-y-5" style={{ gridTemplateColumns: "repeat(14, minmax(0, 1fr))" }}>
           {dots.map((dot) => (
             <span
               key={dot.index}
-              className="universal-image-loading-dot h-1.5 w-1.5 rounded-full bg-[#8d8d8d]"
+              className={`${failed ? "" : "universal-image-loading-dot"} h-1.5 w-1.5 rounded-full bg-[#8d8d8d]`}
               style={{ animationDelay: `${dot.delay}ms`, opacity: dot.opacity }}
             />
           ))}
         </div>
       </div>
+      {failed && onRetry ? (
+        <button className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-[#101827] px-5 text-sm font-bold text-white transition hover:bg-black" type="button" onClick={onRetry}>
+          <RefreshCw className="h-4 w-4" />
+          重新生成
+        </button>
+      ) : null}
       <style>{`
         @keyframes universalImageDotPulse {
           0%, 100% {
