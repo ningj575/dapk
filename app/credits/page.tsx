@@ -76,6 +76,8 @@ function displayCreditRemark(remark: string) {
   if (/Main image/i.test(text)) return "主图生成消耗";
   if (/Detail image/i.test(text)) return "详情图生成消耗";
   if (/Video/i.test(text)) return "视频生成消耗";
+  if (/^视频生成消耗/u.test(text)) return "视频生成消耗";
+  if (/^视频生成失败退回/u.test(text)) return "视频生成失败退回";
   return text;
 }
 
@@ -87,6 +89,11 @@ function displayCreditTitle(log: CreditLog) {
   if (remark.includes("万能")) return "万能生图";
   if (remark.includes("视频")) return "视频生成";
   return log.title === "场景图生成" ? "AI生图" : log.title;
+}
+
+function isRefundLog(log: CreditLog) {
+  const text = `${log.type || ""} ${log.remark || ""} ${log.title || ""}`;
+  return log.type === "refund" || /退|失败退回|refund/i.test(text);
 }
 
 function rechargePackageName(log: CreditLog) {
@@ -200,7 +207,7 @@ function CreditContent() {
                           {displayCreditTitle(log)}
                           {packageName && <span className="ml-1 text-xs text-[#697080]">（{packageName}）</span>}
                         </h2>
-                        {log.type === "refund" && <span className="rounded-full border border-amber-300 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">退还</span>}
+                        {isRefundLog(log) && <span className="rounded-full border border-amber-300 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">退还</span>}
                       </div>
                       <p className="mt-1 text-sm font-normal text-[#697080]">{formatTime(log.created_at)}</p>
                     </div>

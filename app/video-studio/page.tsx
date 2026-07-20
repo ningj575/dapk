@@ -43,6 +43,7 @@ type VideoJob = {
   mode: Mode;
   src: string;
   poster: string;
+  progress?: number;
   cost_credits?: number;
   error_message?: string;
 };
@@ -68,6 +69,9 @@ type VideoGeneratePayload = {
 };
 type VideoRecordsPayload = {
   records: VideoJob[];
+};
+type VideoTaskStatusPayload = {
+  record: VideoJob;
 };
 type VideoAssetsPayload = {
   assets: UploadPreview[];
@@ -355,7 +359,6 @@ export default function VideoStudioPage() {
       setLastGenerated(job);
       setPhase(job.status === "complete" ? "complete" : "generating");
       setTab("result");
-      await refreshRemoteData();
       if (job.status === "generating") {
         void pollVideoResult(job.id);
       }
@@ -370,12 +373,11 @@ export default function VideoStudioPage() {
       await wait(5000);
       if (!token) return;
       try {
-        const response = await fetch(`${apiBase}/api/video-generations`, { headers: { Authorization: `Bearer ${token}` } });
-        const result = await readApi<VideoRecordsPayload>(response);
-        const records = result.data.records || [];
-        setJobs(records);
-        const next = records.find((item) => item.id === recordId);
+        const response = await fetch(`${apiBase}/api/video-task-status?id=${encodeURIComponent(recordId)}`, { headers: { Authorization: `Bearer ${token}` } });
+        const result = await readApi<VideoTaskStatusPayload>(response);
+        const next = result.data.record;
         if (next) {
+          setJobs((current) => [next, ...current.filter((item) => item.id !== next.id)]);
           setLastGenerated(next);
           if (next.status === "complete") {
             setPhase("complete");
@@ -760,13 +762,18 @@ function UploadBox({ title, desc, items, onChange, video = false, compact = fals
 }
 
 function ResultPanel({ phase, job }: { phase: string; job: VideoJob | null }) {
-  const generated = phase === "complete" && job?.status === "complete";
+  const generated = phase === "complete" && job?.status === "complete" && Boolean(job.src);
+  const progress = Math.max(0, Math.min(100, job?.status === "complete" ? 100 : job?.progress ?? 0));
   return (
     <div className="space-y-4">
       <div className={`${generated ? "mx-auto aspect-[9/16] max-h-[620px] max-w-[360px] overflow-hidden bg-zinc-950 p-0" : "bg-[#fbfaf8] p-6 sm:p-8"} relative w-full rounded-[26px] border border-[#ded8cd] shadow-[0_22px_60px_-36px_rgba(0,0,0,0.24)]`}>
         {phase === "generating" || phase === "analyzing" ? (
           <div className="flex min-h-[260px] flex-col items-center justify-center px-6 text-center text-[#101827]">
             <Loader2 className="h-8 w-8 animate-spin text-[#101827]" />
+            <div className="mt-4 h-2 w-full max-w-[260px] overflow-hidden rounded-full bg-[#e8e4dd]">
+              <div className="h-full rounded-full bg-[#101827] transition-all" style={{ width: `${Math.max(6, progress)}%` }} />
+            </div>
+            <p className="mt-2 text-xs font-semibold text-[#101827]">{progress}%</p>
             <p className="mt-4 text-sm font-bold">{phase === "analyzing" ? "AI 正在拆解参考视频..." : "视频生成中"}</p>
             <p className="mt-2 text-xs text-[#697080]">视频生成通常需要 2-5 分钟，请耐心等待</p>
           </div>
@@ -810,19 +817,20 @@ function RecentPanel({ jobs }: { jobs: VideoJob[] }) {
         {jobs.map((job) => (
           <div key={job.id} className="overflow-hidden rounded-2xl border border-[#ded8cd] bg-[#f6f5f3] text-left">
             <div className="relative aspect-video bg-[#e8e4dd]">
-              {job.status === "complete" ? (
+              {job.status === "complete" && job.src ? (
                 <video className="h-full w-full object-cover" controls muted playsInline poster={job.poster} preload="none" src={job.src} />
               ) : job.status === "failed" ? (
                 <div className="flex h-full items-center justify-center px-4 text-center text-xs font-semibold text-red-600">
                   生成失败
                 </div>
               ) : (
-                <div className="flex h-full items-center justify-center">
+                <div className="flex h-full flex-col items-center justify-center gap-2">
                   <Loader2 className="h-5 w-5 animate-spin text-[#697080]" />
+                  <span className="text-[10px] font-semibold text-[#697080]">{Math.max(0, Math.min(99, job.progress ?? 0))}%</span>
                 </div>
               )}
               <span className={`absolute left-1.5 top-1.5 rounded-full px-2 py-0.5 text-[9px] font-semibold ${job.status === "complete" ? "bg-emerald-100 text-emerald-700" : job.status === "failed" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{job.status === "complete" ? "完成" : job.status === "failed" ? "失败" : "生成中"}</span>
-              {job.status === "complete" && (
+              {job.status === "complete" && job.src && (
                 <a className="absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#101827] shadow-sm transition hover:bg-white" href={job.src} download target="_blank" rel="noreferrer" aria-label="下载视频">
                   <Download className="h-3.5 w-3.5" />
                 </a>
@@ -965,11 +973,6 @@ function placeholderForMode(mode: Mode) {
   if (mode === "video-rep-4") return "按原视频节奏复刻，主体产品严格替换为用户上传产品，保持构图、灯光、动作、音频氛围一致。";
   if (mode === "first-last-2") return "描述首帧到尾帧之间的动作变化、镜头运动、氛围和主体细节。";
   return "描述视频风格：如 广告大片、快节奏短视频、电影感、治愈风...";
-}
-
-function demoVideoForMode(mode: Mode) {
-  const item = templateTabs.find((template) => template.key === mode) ?? templateTabs[0];
-  return { video: item.video, poster: item.poster };
 }
 
 function modeLabel(mode: Mode) {

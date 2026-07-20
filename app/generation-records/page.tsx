@@ -113,6 +113,16 @@ function isFailedImageRecord(record: GenerationRecord) {
   return !isVideo && String(record.status || "").toLowerCase() === "failed" && !hasImages;
 }
 
+function isHiddenGenerationRecord(record: GenerationRecord) {
+  const isVideo = record.media_type === "video" || record.type === "video_generation";
+  const status = String(record.status || "").toLowerCase();
+  const hasMedia = splitMediaUrls(record.media_url || record.image_url || "").length > 0;
+  if (isVideo) {
+    return status !== "success" || !hasMedia;
+  }
+  return isFailedImageRecord(record);
+}
+
 function splitMediaUrls(value: string) {
   return String(value || "")
     .split(",")
@@ -204,7 +214,7 @@ function GenerationRecordsContent() {
     return () => window.clearTimeout(timer);
   }, [fetchRecords]);
 
-  const visibleRecords = useMemo(() => records.filter((record) => record.type !== "watermark_remover" && !isFailedImageRecord(record)), [records]);
+  const visibleRecords = useMemo(() => records.filter((record) => record.type !== "watermark_remover" && !isHiddenGenerationRecord(record)), [records]);
 
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase();
