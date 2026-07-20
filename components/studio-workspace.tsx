@@ -307,7 +307,6 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const [detailRecordId, setDetailRecordId] = useState<number | null>(null);
   const [detailError, setDetailError] = useState("");
   const [retryingTaskId, setRetryingTaskId] = useState<number | null>(null);
-  const [detailProductName, setDetailProductName] = useState("");
   const [detailProductDescription, setDetailProductDescription] = useState("");
   const [genesisPhase, setGenesisPhase] = useState<StudioPhase>("idle");
   const [detailPhase, setDetailPhase] = useState<StudioPhase>("idle");
@@ -374,7 +373,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const activeCost = mode === "genesis" ? mainImageCost : detailImageCost;
   const hasCreditSnapshot = typeof user?.credits === "number";
   const canFillGenesis = genesisUploads.length > 0 && brief.trim().length > 0;
-  const canFillDetail = detailUploads.length > 0 && detailProductName.trim().length > 0;
+  const canFillDetail = detailUploads.length > 0 && detailProductDescription.trim().length > 0;
   const insufficientCredits = (mode === "genesis" ? canFillGenesis : canFillDetail) && hasCreditSnapshot && activeCost > Number(user?.credits || 0);
 
   useEffect(() => {
@@ -431,7 +430,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ task_id: taskId })
+        body: JSON.stringify({ task_id: taskId, record_id: recordId })
       });
       const result = await readApi<ImageTaskStatusPayload>(response);
       window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
@@ -511,7 +510,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          product_name: detailProductName.trim(),
+          product_name: "",
           product_description: detailProductDescription.trim(),
           model: detailModel,
           ratio: detailRatio,
@@ -587,8 +586,6 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
                 </>
               ) : (
                 <DetailInputs
-                  productName={detailProductName}
-                  setProductName={setDetailProductName}
                   productDescription={detailProductDescription}
                   setProductDescription={setDetailProductDescription}
                   language={detailLanguage}
@@ -883,8 +880,6 @@ function TextCard({ icon, title, subtitle, value, setValue, placeholder }: { ico
 }
 
 function DetailInputs({
-  productName,
-  setProductName,
   productDescription,
   setProductDescription,
   language,
@@ -900,8 +895,6 @@ function DetailInputs({
   setResolution,
   resolutionOptions
 }: {
-  productName: string;
-  setProductName: (value: string) => void;
   productDescription: string;
   setProductDescription: (value: string) => void;
   language: string;
@@ -926,18 +919,13 @@ function DetailInputs({
           </div>
           <div>
             <h2 className="text-xl font-extrabold">生成设置</h2>
-            <p className="mt-1 text-sm text-[#697080]">填写产品名称和描述，AI 会按这些内容生成详情图。</p>
+            <p className="mt-1 text-sm text-[#697080]">填写核心卖点，AI 会按这些内容生成详情图。</p>
           </div>
         </div>
         <div className="mt-6 space-y-5">
           <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[#566070]">产品名称（必填）</span>
-            <input className="studio-input" maxLength={60} placeholder="例如：高弹舒适跑鞋" value={productName} onChange={(event) => setProductName(event.target.value)} />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[#566070]">产品描述（选填）</span>
-            <textarea className="studio-input h-32 resize-none py-4 leading-6" maxLength={300} placeholder="材质、卖点、目标人群、圣诞节氛围、卧室场景风格等" value={productDescription} onChange={(event) => setProductDescription(event.target.value)} />
-            <span className="mt-2 block text-xs leading-5 text-[#8a919e]">描述写关键词、卖点、材质、场景风格等重要信息即可，不需要长篇大论，不写描述也可以。</span>
+            <span className="mb-2 block text-sm font-semibold text-[#566070]">核心卖点</span>
+            <textarea className="studio-input h-40 resize-none py-4 leading-6" maxLength={500} placeholder={"建议包含以下信息生成更精准:  \n1.产品名称\n2.核心卖点\n3.适用人群\n4.期望场景\n5.具体参数"} value={productDescription} onChange={(event) => setProductDescription(event.target.value)} />
           </label>
         </div>
 
@@ -1039,7 +1027,7 @@ function ActionPanel({
   const disabled = !canGenerate || insufficientCredits;
   const label = mode === "genesis" ? "生成主图" : detailMode === "connected" ? "生成一键长图" : "生成详情图";
   const cost = `消耗 ${costCredits} 积分`;
-  const helperText = insufficientCredits ? cost : disabled ? (mode === "genesis" ? "请先上传产品素材并填写设计简报" : "请先上传产品素材并填写产品名称") : cost;
+  const helperText = insufficientCredits ? cost : disabled ? (mode === "genesis" ? "请先上传产品素材并填写设计简报" : "请先上传产品素材并填写核心卖点") : cost;
   return (
     <section className="rounded-[28px] border border-[#ded8cd] bg-white p-6">
       <button data-testid="main-generate-button" className="press-scale flex h-14 w-full items-center justify-center gap-2 rounded-[1.4rem] border border-[#172033] bg-[#101827] text-base font-bold text-[#f8f4ee] shadow-[0_14px_30px_-14px_rgba(16,24,39,0.38)] transition hover:-translate-y-px disabled:border-[#d7d2c7] disabled:bg-[#e7e2d9] disabled:text-[#8b8478]" disabled={disabled || isGenerating} type="button" onClick={onGenerate}>
@@ -1146,7 +1134,7 @@ function ResultPanel({
           <div className="flex min-h-[520px] flex-col items-center justify-center rounded-[24px] bg-[#f6f3ed] px-6 text-center">
             <ImagePlus className="h-12 w-12 text-[#8f97a5]" />
             <p className="mt-5 max-w-[360px] text-base leading-7 text-[#697080]">
-              {mode === "genesis" ? "上传产品图并填写设计简报。点击生成主图，等待生成完成。" : "上传同款商品参考图、填写产品名称和产品描述，点击“生成详情图”开始。"}
+              {mode === "genesis" ? "上传产品图并填写设计简报。点击生成主图，等待生成完成。" : "上传同款商品参考图、填写核心卖点，点击“生成详情图”开始。"}
             </p>
           </div>
         )}
