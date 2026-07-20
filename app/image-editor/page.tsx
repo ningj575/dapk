@@ -105,6 +105,7 @@ const navItems = [
   ["万能生图", "/image-editor"],
   ["主图", "/studio-genesis"],
   ["详情图", "/ecom-studio"],
+  ["视频生成", "/video-studio"],
   ["套餐", "/pricing"]
 ];
 
