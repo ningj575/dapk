@@ -37,13 +37,24 @@ type UploadPreview = {
 };
 type VideoJob = {
   id: string;
-  status: "generating" | "complete";
+  status: "generating" | "complete" | "failed";
   title: string;
   meta: string;
   mode: Mode;
   src: string;
   poster: string;
   cost_credits?: number;
+  error_message?: string;
+};
+type VideoModelConfig = {
+  mode: Mode;
+  model_name: string;
+  provider: string;
+  api_model: string;
+  ratios: string[];
+  resolutions: string[];
+  durations: string[];
+  costs: Record<string, Record<string, number>>;
 };
 type ApiResponse<T> = {
   code: number;
@@ -61,6 +72,12 @@ type VideoRecordsPayload = {
 type VideoAssetsPayload = {
   assets: UploadPreview[];
 };
+type VideoModelConfigsPayload = {
+  configs: VideoModelConfig[];
+};
+type ReferenceImagesPayload = {
+  images: Array<{ path: string; url: string }>;
+};
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -70,6 +87,31 @@ async function readApi<T>(response: Response): Promise<ApiResponse<T>> {
     throw new Error(payload.message || "请求失败");
   }
   return payload;
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function uploadVideoImageAssets(assets: Array<UploadPreview & { role?: string }>, token: string) {
+  const dataImages = assets.filter((asset) => !asset.video && asset.src.startsWith("data:image/"));
+  if (dataImages.length === 0) return assets;
+  const response = await fetch(`${apiBase}/api/reference-images`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ images: dataImages.map((asset) => asset.src) })
+  });
+  const result = await readApi<ReferenceImagesPayload>(response);
+  const uploaded = result.data.images || [];
+  let uploadIndex = 0;
+  return assets.map((asset) => {
+    if (asset.video || !asset.src.startsWith("data:image/")) return asset;
+    const item = uploaded[uploadIndex++];
+    return item?.url ? { ...asset, src: item.url } : asset;
+  });
 }
 
 const navItems = [
@@ -111,9 +153,11 @@ export default function VideoStudioPage() {
     "first-last-2": "",
     "video-rep-4": ""
   });
-  const [model, setModel] = useState("Seedance 2.0");
+  const [model, setModel] = useState("Sora2");
+  const [ratio, setRatio] = useState("9:16");
   const [duration, setDuration] = useState("5s");
   const [resolution, setResolution] = useState("720p");
+  const [videoConfigs, setVideoConfigs] = useState<VideoModelConfig[]>([]);
   const [oneClickAssets, setOneClickAssets] = useState<UploadPreview[]>([]);
   const [firstFrameAssets, setFirstFrameAssets] = useState<UploadPreview[]>([]);
   const [lastFrameAssets, setLastFrameAssets] = useState<UploadPreview[]>([]);
@@ -130,11 +174,16 @@ export default function VideoStudioPage() {
     setPrompts((current) => ({ ...current, [mode]: value }));
   }, [mode]);
 
-  const cost = useMemo(() => {
-    if (duration === "8s") return 400;
-    if (duration === "10s") return 500;
-    return 300;
-  }, [duration]);
+  const activeVideoConfig = useMemo(
+    () => videoConfigs.find((config) => config.mode === mode && config.model_name === model) || videoConfigs.find((config) => config.mode === mode),
+    [mode, model, videoConfigs]
+  );
+
+  const modelOptions = useMemo(() => videoConfigs.filter((config) => config.mode === mode).map((config) => config.model_name), [mode, videoConfigs]);
+  const ratioOptions = activeVideoConfig?.ratios?.length ? activeVideoConfig.ratios : ["9:16", "16:9", "1:1"];
+  const resolutionOptions = activeVideoConfig?.resolutions?.length ? activeVideoConfig.resolutions : ["720p", "1080p"];
+  const durationOptions = activeVideoConfig?.durations?.length ? activeVideoConfig.durations : ["5s", "8s", "10s"];
+  const cost = activeVideoConfig?.costs?.[resolution]?.[duration] ?? 300;
 
   const localUploadedAssets = useMemo(
     () => [...oneClickAssets, ...firstFrameAssets, ...lastFrameAssets, ...repProductAssets, ...repVideoAssets],
@@ -185,16 +234,38 @@ export default function VideoStudioPage() {
     }
   }, [token]);
 
+  const refreshVideoConfigs = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/video-model-configs`);
+      const result = await readApi<VideoModelConfigsPayload>(response);
+      setVideoConfigs(result.data.configs || []);
+    } catch (event) {
+      setError(event instanceof Error ? event.message : "加载视频模型配置失败");
+    }
+  }, []);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      void refreshVideoConfigs();
       void refreshRemoteData();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [refreshRemoteData]);
+  }, [refreshRemoteData, refreshVideoConfigs]);
+
+  useEffect(() => {
+    const configs = videoConfigs.filter((config) => config.mode === mode);
+    if (configs.length === 0) return;
+    const current = configs.find((config) => config.model_name === model) || configs[0];
+    if (current.model_name !== model) setModel(current.model_name);
+    if (!current.ratios.includes(ratio)) setRatio(current.ratios[0] || "9:16");
+    if (!current.resolutions.includes(resolution)) setResolution(current.resolutions[0] || "720p");
+    if (!current.durations.includes(duration)) setDuration(current.durations[0] || "5s");
+  }, [duration, mode, model, ratio, resolution, videoConfigs]);
 
   useEffect(() => {
     if (!token || localUploadedAssets.length === 0) return;
     const assets = localAssetsWithRoles.filter((asset) => {
+      if (asset.src.startsWith("data:")) return false;
       const key = `${asset.name}-${asset.src.slice(0, 80)}`;
       if (savedAssetKeys.current.has(key)) return false;
       savedAssetKeys.current.add(key);
@@ -242,6 +313,7 @@ export default function VideoStudioPage() {
     setPhase("generating");
     setTab("result");
     try {
+      const readyAssets = await uploadVideoImageAssets(assetsForCurrentMode(), token);
       const response = await fetch(`${apiBase}/api/video-generate`, {
         method: "POST",
         headers: {
@@ -252,9 +324,10 @@ export default function VideoStudioPage() {
           mode,
           prompt,
           model,
+          ratio,
           duration,
           resolution,
-          assets: assetsForCurrentMode()
+          assets: readyAssets
         })
       });
       const result = await readApi<VideoGeneratePayload>(response);
@@ -263,12 +336,43 @@ export default function VideoStudioPage() {
       const job = result.data.record;
       setJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
       setLastGenerated(job);
-      setPhase("complete");
+      setPhase(job.status === "complete" ? "complete" : "generating");
       setTab("result");
       await refreshRemoteData();
+      if (job.status === "generating") {
+        void pollVideoResult(job.id);
+      }
     } catch (event) {
       setError(event instanceof Error ? event.message : "视频生成失败");
       setPhase("idle");
+    }
+  }
+
+  async function pollVideoResult(recordId: string) {
+    for (let index = 0; index < 72; index += 1) {
+      await wait(5000);
+      if (!token) return;
+      try {
+        const response = await fetch(`${apiBase}/api/video-generations`, { headers: { Authorization: `Bearer ${token}` } });
+        const result = await readApi<VideoRecordsPayload>(response);
+        const records = result.data.records || [];
+        setJobs(records);
+        const next = records.find((item) => item.id === recordId);
+        if (next) {
+          setLastGenerated(next);
+          if (next.status === "complete") {
+            setPhase("complete");
+            return;
+          }
+          if (next.status === "failed") {
+            setPhase("idle");
+            setError(next.error_message || "视频生成失败");
+            return;
+          }
+        }
+      } catch {
+        // Keep polling; transient network failures should not stop a submitted task.
+      }
     }
   }
 
@@ -311,7 +415,7 @@ export default function VideoStudioPage() {
 
           <div className="mt-6 space-y-5">
             <section className="rounded-[30px] border border-[#ded8cd] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] sm:p-7">
-              <ModeEditor mode={mode} prompt={prompt} setPrompt={setPrompt} model={model} setModel={setModel} duration={duration} setDuration={setDuration} resolution={resolution} setResolution={setResolution} cost={cost} phase={phase} canGenerate={canGenerate} onGenerate={generate} oneClickAssets={oneClickAssets} setOneClickAssets={setOneClickAssets} firstFrameAssets={firstFrameAssets} setFirstFrameAssets={setFirstFrameAssets} lastFrameAssets={lastFrameAssets} setLastFrameAssets={setLastFrameAssets} repProductAssets={repProductAssets} setRepProductAssets={setRepProductAssets} repVideoAssets={repVideoAssets} setRepVideoAssets={setRepVideoAssets} />
+              <ModeEditor mode={mode} prompt={prompt} setPrompt={setPrompt} model={model} setModel={setModel} modelOptions={modelOptions} ratio={ratio} setRatio={setRatio} ratioOptions={ratioOptions} duration={duration} setDuration={setDuration} durationOptions={durationOptions} resolution={resolution} setResolution={setResolution} resolutionOptions={resolutionOptions} cost={cost} phase={phase} canGenerate={canGenerate} onGenerate={generate} oneClickAssets={oneClickAssets} setOneClickAssets={setOneClickAssets} firstFrameAssets={firstFrameAssets} setFirstFrameAssets={setFirstFrameAssets} lastFrameAssets={lastFrameAssets} setLastFrameAssets={setLastFrameAssets} repProductAssets={repProductAssets} setRepProductAssets={setRepProductAssets} repVideoAssets={repVideoAssets} setRepVideoAssets={setRepVideoAssets} />
             </section>
 
             <section className="rounded-[30px] border border-[#ded8cd] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] sm:p-7">
@@ -446,10 +550,16 @@ function ModeEditor({
   setPrompt,
   model,
   setModel,
+  modelOptions,
+  ratio,
+  setRatio,
+  ratioOptions,
   duration,
   setDuration,
+  durationOptions,
   resolution,
   setResolution,
+  resolutionOptions,
   cost,
   phase,
   canGenerate,
@@ -470,10 +580,16 @@ function ModeEditor({
   setPrompt: (value: string) => void;
   model: string;
   setModel: (value: string) => void;
+  modelOptions: string[];
+  ratio: string;
+  setRatio: (value: string) => void;
+  ratioOptions: string[];
   duration: string;
   setDuration: (value: string) => void;
+  durationOptions: string[];
   resolution: string;
   setResolution: (value: string) => void;
+  resolutionOptions: string[];
   cost: number;
   phase: string;
   canGenerate: boolean;
@@ -508,10 +624,10 @@ function ModeEditor({
       <div className="border-t border-[#e5ded2] pt-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
-            <PillSelect value={model} onChange={setModel} options={["Seedance 2.0", "Seedance 2.0 Fast"]} icon={<Sparkles className="h-3.5 w-3.5" />} />
-            <PillSelect value="9:16" onChange={() => {}} options={["9:16", "16:9", "1:1"]} icon={<Video className="h-3.5 w-3.5" />} />
-            <Segmented value={resolution} onChange={setResolution} options={["720p", "1080p"]} />
-            <PillSelect value={duration} onChange={setDuration} options={["5s", "8s", "10s"]} icon={<Clock className="h-3.5 w-3.5" />} />
+            <PillSelect value={model} onChange={setModel} options={modelOptions.length ? modelOptions : ["Sora2", "Veo3"]} icon={<Sparkles className="h-3.5 w-3.5" />} />
+            <PillSelect value={ratio} onChange={setRatio} options={ratioOptions.length ? ratioOptions : ["9:16", "16:9", "1:1"]} icon={<Video className="h-3.5 w-3.5" />} />
+            <Segmented value={resolution} onChange={setResolution} options={resolutionOptions.length ? resolutionOptions : ["720p", "1080p"]} />
+            <PillSelect value={duration} onChange={setDuration} options={durationOptions.length ? durationOptions : ["5s", "8s", "10s"]} icon={<Clock className="h-3.5 w-3.5" />} />
           </div>
           <div className="flex items-center justify-end gap-4">
             <span className="text-sm font-semibold text-[#697080]">{cost} 积分</span>
@@ -673,12 +789,16 @@ function RecentPanel({ jobs }: { jobs: VideoJob[] }) {
             <div className="relative aspect-video bg-[#e8e4dd]">
               {job.status === "complete" ? (
                 <video className="h-full w-full object-cover" controls muted playsInline poster={job.poster} preload="none" src={job.src} />
+              ) : job.status === "failed" ? (
+                <div className="flex h-full items-center justify-center px-4 text-center text-xs font-semibold text-red-600">
+                  生成失败
+                </div>
               ) : (
                 <div className="flex h-full items-center justify-center">
                   <Loader2 className="h-5 w-5 animate-spin text-[#697080]" />
                 </div>
               )}
-              <span className={`absolute left-1.5 top-1.5 rounded-full px-2 py-0.5 text-[9px] font-semibold ${job.status === "complete" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{job.status === "complete" ? "完成" : "生成中"}</span>
+              <span className={`absolute left-1.5 top-1.5 rounded-full px-2 py-0.5 text-[9px] font-semibold ${job.status === "complete" ? "bg-emerald-100 text-emerald-700" : job.status === "failed" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{job.status === "complete" ? "完成" : job.status === "failed" ? "失败" : "生成中"}</span>
               {job.status === "complete" && (
                 <a className="absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#101827] shadow-sm transition hover:bg-white" href={job.src} download target="_blank" rel="noreferrer" aria-label="下载视频">
                   <Download className="h-3.5 w-3.5" />
