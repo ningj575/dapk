@@ -158,7 +158,7 @@ export default function VideoStudioPage() {
     "video-rep-4": ""
   });
   const [model, setModel] = useState("Sora2");
-  const [ratio, setRatio] = useState("9:16");
+  const [ratio, setRatio] = useState("16:9");
   const [duration, setDuration] = useState("5s");
   const [resolution, setResolution] = useState("720p");
   const [videoConfigs, setVideoConfigs] = useState<VideoModelConfig[]>([]);
@@ -278,7 +278,7 @@ export default function VideoStudioPage() {
     if (configs.length === 0) return;
     const current = configs.find((config) => config.model_name === model) || configs[0];
     if (current.model_name !== model) setModel(current.model_name);
-    if (!current.ratios.includes(ratio)) setRatio(current.ratios[0] || "9:16");
+    if (!current.ratios.includes(ratio)) setRatio(current.ratios.includes("16:9") ? "16:9" : current.ratios[0] || "16:9");
     if (!current.resolutions.includes(resolution)) setResolution(current.resolutions[0] || "720p");
     if (!current.durations.includes(duration)) setDuration(current.durations[0] || "5s");
   }, [duration, mode, model, ratio, resolution, videoConfigs]);
@@ -326,6 +326,40 @@ export default function VideoStudioPage() {
       ...repProductAssets.map((asset) => ({ ...asset, role: "rep_product" })),
       ...repVideoAssets.map((asset) => ({ ...asset, role: "rep_video" }))
     ];
+  }
+
+  function appendLibraryAssets(items: UploadPreview[], asset: UploadPreview, maxFiles: number) {
+    if (items.some((item) => item.src === asset.src)) return items;
+    return [...items, { ...asset, id: `${Date.now()}-${asset.id}` }].slice(0, maxFiles);
+  }
+
+  function addAssetFromLibrary(asset: UploadPreview) {
+    setError("");
+    if (mode === "one-click-2") {
+      if (asset.video) {
+        setError("一键生成请添加图片素材");
+        return;
+      }
+      setOneClickAssets((current) => appendLibraryAssets(current, asset, 6));
+      return;
+    }
+    if (mode === "first-last-2") {
+      if (asset.video) {
+        setError("首尾帧请添加图片素材");
+        return;
+      }
+      if (firstFrameAssets.length === 0) {
+        setFirstFrameAssets((current) => appendLibraryAssets(current, asset, 5));
+      } else {
+        setLastFrameAssets((current) => appendLibraryAssets(current, asset, 5));
+      }
+      return;
+    }
+    if (asset.video) {
+      setRepVideoAssets((current) => appendLibraryAssets(current, asset, 1));
+    } else {
+      setRepProductAssets((current) => appendLibraryAssets(current, asset, 5));
+    }
   }
 
   async function generate() {
@@ -470,7 +504,7 @@ export default function VideoStudioPage() {
               {error && <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{error}</div>}
               {tab === "result" && <ResultPanel phase={phase} job={lastGenerated} />}
               {tab === "videos" && <RecentPanel jobs={jobs} />}
-              {tab === "assets" && <AssetsPanel assets={uploadedAssets} />}
+              {tab === "assets" && <AssetsPanel assets={uploadedAssets} onUseAsset={addAssetFromLibrary} />}
             </section>
           </div>
         </section>
@@ -632,17 +666,17 @@ function ModeEditor({
 }) {
   return (
     <div className="space-y-4">
-      {mode === "one-click-2" && <OneClickForm items={oneClickAssets} onChange={setOneClickAssets} />}
+      {mode === "one-click-2" && <OneClickProductForm items={oneClickAssets} onChange={setOneClickAssets} />}
       {mode === "first-last-2" && <FirstLastForm firstItems={firstFrameAssets} onFirstChange={setFirstFrameAssets} lastItems={lastFrameAssets} onLastChange={setLastFrameAssets} />}
       {mode === "video-rep-4" && <VideoReplicationForm productItems={repProductAssets} onProductChange={setRepProductAssets} videoItems={repVideoAssets} onVideoChange={setRepVideoAssets} />}
 
       {mode === "one-click-2" && (
-        <textarea className="studio-input min-h-[62px] resize-none py-4 leading-6" maxLength={500} placeholder={placeholderForMode(mode)} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
+        <textarea className="studio-input min-h-[62px] resize-none py-4 leading-6" maxLength={500} placeholder={videoPromptPlaceholder(mode)} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
       )}
       {mode !== "one-click-2" && (
         <label className="block">
           <span className="mb-2 block text-xs font-bold text-[#7d8492]">提示词</span>
-          <textarea className="studio-input min-h-[96px] resize-none py-4 leading-6" maxLength={500} placeholder={placeholderForMode(mode)} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
+          <textarea className="studio-input min-h-[96px] resize-none py-4 leading-6" maxLength={500} placeholder={videoPromptPlaceholder(mode)} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
         </label>
       )}
 
@@ -650,7 +684,7 @@ function ModeEditor({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
             <PillSelect value={model} onChange={setModel} options={modelOptions.length ? modelOptions : ["Sora2", "Veo3"]} icon={<Sparkles className="h-3.5 w-3.5" />} />
-            <PillSelect value={ratio} onChange={setRatio} options={ratioOptions.length ? ratioOptions : ["9:16", "16:9", "1:1"]} icon={<Video className="h-3.5 w-3.5" />} />
+            <PillSelect value={ratio} onChange={setRatio} options={ratioOptions.length ? ratioOptions : ["16:9", "9:16", "1:1"]} icon={<Video className="h-3.5 w-3.5" />} />
             <Segmented value={resolution} onChange={setResolution} options={resolutionOptions.length ? resolutionOptions : ["720p", "1080p"]} />
             <PillSelect value={duration} onChange={setDuration} options={durationOptions.length ? durationOptions : ["5s", "8s", "10s"]} icon={<Clock className="h-3.5 w-3.5" />} />
           </div>
@@ -694,13 +728,19 @@ function FirstLastForm({ firstItems, onFirstChange, lastItems, onLastChange }: {
   );
 }
 
+function OneClickProductForm({ items, onChange }: { items: UploadPreview[]; onChange: (items: UploadPreview[]) => void }) {
+  return (
+    <UploadBox title="添加图片" desc="上传一张产品图，AI导演自动输出产品视频分镜" large items={items} onChange={onChange} />
+  );
+}
+
 function UploadBox({ title, desc, items, onChange, video = false, compact = false, large = false }: { title: string; desc: string; items: UploadPreview[]; onChange: (items: UploadPreview[]) => void; video?: boolean; compact?: boolean; large?: boolean }) {
   const maxFiles = video ? 1 : large ? 6 : 5;
 
-  async function onFiles(files?: FileList | null) {
+  async function onFiles(files?: FileList | File[] | null) {
     if (!files || files.length === 0) return;
     const slots = Math.max(0, maxFiles - items.length);
-    const selected = Array.from(files).slice(0, slots);
+    const selected = Array.from(files).filter((file) => video ? file.type.startsWith("video/") : file.type.startsWith("image/")).slice(0, slots);
     const previews = await Promise.all(
       selected.map(
         (file, index) =>
@@ -721,7 +761,16 @@ function UploadBox({ title, desc, items, onChange, video = false, compact = fals
   }
 
   return (
-    <label className={`block cursor-pointer rounded-2xl border-2 border-dashed border-[#ded8cd] bg-[#fbfaf8] p-4 transition hover:border-[#9ba1ad] ${large ? "min-h-[180px]" : compact ? "min-h-[150px]" : "min-h-[190px]"}`}>
+    <label
+      className={`block cursor-pointer rounded-2xl border-2 border-dashed border-[#ded8cd] bg-[#fbfaf8] p-4 transition hover:border-[#9ba1ad] ${large ? "min-h-[180px]" : compact ? "min-h-[150px]" : "min-h-[190px]"}`}
+      onDragOver={(event) => {
+        event.preventDefault();
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        void onFiles(event.dataTransfer.files);
+      }}
+    >
       <input className="hidden" type="file" accept={video ? "video/*,.mp4,.mov" : "image/*"} multiple={!video} onChange={(event) => { void onFiles(event.target.files); event.currentTarget.value = ""; }} />
       {items.length > 0 ? (
         <div className={video ? "space-y-3" : "grid grid-cols-3 gap-3 sm:grid-cols-5"}>
@@ -761,6 +810,11 @@ function UploadBox({ title, desc, items, onChange, video = false, compact = fals
   );
 }
 
+function videoFramePreviewSrc(src: string) {
+  if (!src) return src;
+  return src.includes("#") ? src : `${src}#t=0.001`;
+}
+
 function ResultPanel({ phase, job }: { phase: string; job: VideoJob | null }) {
   const generated = phase === "complete" && job?.status === "complete" && Boolean(job.src);
   const progress = Math.max(0, Math.min(100, job?.status === "complete" ? 100 : job?.progress ?? 0));
@@ -778,7 +832,7 @@ function ResultPanel({ phase, job }: { phase: string; job: VideoJob | null }) {
             <p className="mt-2 text-xs text-[#697080]">视频生成通常需要 2-5 分钟，请耐心等待</p>
           </div>
         ) : generated ? (
-          <video className="h-full w-full object-cover" controls muted playsInline poster={job.poster} preload="none" src={job.src} />
+          <video className="h-full w-full object-cover" controls muted playsInline poster={job.poster || undefined} preload="metadata" src={videoFramePreviewSrc(job.src)} />
         ) : (
           <div className="flex min-h-[260px] flex-col items-center justify-center px-6 text-center text-[#697080]">
             <div className="space-y-4 text-left text-sm">
@@ -818,7 +872,7 @@ function RecentPanel({ jobs }: { jobs: VideoJob[] }) {
           <div key={job.id} className="overflow-hidden rounded-2xl border border-[#ded8cd] bg-[#f6f5f3] text-left">
             <div className="relative aspect-video bg-[#e8e4dd]">
               {job.status === "complete" && job.src ? (
-                <video className="h-full w-full object-cover" controls muted playsInline poster={job.poster} preload="none" src={job.src} />
+                <video className="h-full w-full object-cover" controls muted playsInline poster={job.poster || undefined} preload="metadata" src={videoFramePreviewSrc(job.src)} />
               ) : job.status === "failed" ? (
                 <div className="flex h-full items-center justify-center px-4 text-center text-xs font-semibold text-red-600">
                   生成失败
@@ -847,7 +901,7 @@ function RecentPanel({ jobs }: { jobs: VideoJob[] }) {
   );
 }
 
-function AssetsPanel({ assets }: { assets: UploadPreview[] }) {
+function AssetsPanel({ assets, onUseAsset }: { assets: UploadPreview[]; onUseAsset: (asset: UploadPreview) => void }) {
   if (assets.length === 0) {
     return <EmptyState icon={<Images className="h-6 w-6" />} title="暂无素材" desc="通过视频生成模块上传的图片或视频会显示在这里。" />;
   }
@@ -857,7 +911,7 @@ function AssetsPanel({ assets }: { assets: UploadPreview[] }) {
       <span className="text-xs text-[#697080]">视频生成模块上传的素材</span>
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
         {assets.map((asset) => (
-          <div key={asset.id} className="relative aspect-square overflow-hidden rounded-xl border border-[#ded8cd] bg-[#f6f5f3]">
+          <button key={asset.id} className="group relative aspect-square overflow-hidden rounded-xl border border-[#ded8cd] bg-[#f6f5f3] text-left transition hover:border-[#101827]" type="button" onClick={() => onUseAsset(asset)}>
             {asset.video ? (
               <>
                 <video className="h-full w-full object-cover" muted playsInline preload="metadata" src={asset.src} />
@@ -869,7 +923,8 @@ function AssetsPanel({ assets }: { assets: UploadPreview[] }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={asset.src} alt={asset.name} className="h-full w-full object-cover" />
             )}
-          </div>
+            <span className="absolute inset-x-2 bottom-2 hidden rounded-full bg-[#101827]/85 px-2 py-1 text-center text-[10px] font-semibold text-white group-hover:block">添加到上方</span>
+          </button>
         ))}
       </div>
     </div>
@@ -967,6 +1022,11 @@ function Segmented({ value, onChange, options }: { value: string; onChange: (val
       ))}
     </div>
   );
+}
+
+function videoPromptPlaceholder(mode: Mode) {
+  if (mode === "one-click-2") return "描述你想生成的视频内容，例如：可爱的狗开飞机。";
+  return placeholderForMode(mode);
 }
 
 function placeholderForMode(mode: Mode) {
