@@ -168,6 +168,7 @@ export default function VideoStudioPage() {
   const [serverAssets, setServerAssets] = useState<UploadPreview[]>([]);
   const [error, setError] = useState("");
   const [loadingRemote, setLoadingRemote] = useState(false);
+  const [videoConfigLoaded, setVideoConfigLoaded] = useState(false);
 
   const prompt = prompts[mode] || "";
   const setPrompt = useCallback((value: string) => {
@@ -178,6 +179,12 @@ export default function VideoStudioPage() {
     () => videoConfigs.find((config) => config.mode === mode && config.model_name === model) || videoConfigs.find((config) => config.mode === mode),
     [mode, model, videoConfigs]
   );
+
+  const visibleModes = useMemo(() => {
+    if (!videoConfigLoaded) return [...modes];
+    const enabledModes = new Set(videoConfigs.map((config) => config.mode));
+    return modes.filter((item) => enabledModes.has(item.key));
+  }, [videoConfigLoaded, videoConfigs]);
 
   const modelOptions = useMemo(() => videoConfigs.filter((config) => config.mode === mode).map((config) => config.model_name), [mode, videoConfigs]);
   const ratioOptions = activeVideoConfig?.ratios?.length ? activeVideoConfig.ratios : ["9:16", "16:9", "1:1"];
@@ -209,11 +216,12 @@ export default function VideoStudioPage() {
   ], [firstFrameAssets, lastFrameAssets, oneClickAssets, repProductAssets, repVideoAssets]);
 
   const canGenerate = useMemo(() => {
+    if (!activeVideoConfig) return false;
     const hasPrompt = prompt.trim().length > 0;
     if (mode === "one-click-2") return hasPrompt && oneClickAssets.length > 0;
     if (mode === "first-last-2") return firstFrameAssets.length > 0 && lastFrameAssets.length > 0;
     return repProductAssets.length > 0 && repVideoAssets.length > 0;
-  }, [firstFrameAssets.length, lastFrameAssets.length, mode, oneClickAssets.length, prompt, repProductAssets.length, repVideoAssets.length]);
+  }, [activeVideoConfig, firstFrameAssets.length, lastFrameAssets.length, mode, oneClickAssets.length, prompt, repProductAssets.length, repVideoAssets.length]);
 
   const refreshRemoteData = useCallback(async () => {
     if (!token) return;
@@ -241,6 +249,8 @@ export default function VideoStudioPage() {
       setVideoConfigs(result.data.configs || []);
     } catch (event) {
       setError(event instanceof Error ? event.message : "加载视频模型配置失败");
+    } finally {
+      setVideoConfigLoaded(true);
     }
   }, []);
 
@@ -251,6 +261,13 @@ export default function VideoStudioPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [refreshRemoteData, refreshVideoConfigs]);
+
+  useEffect(() => {
+    if (!videoConfigLoaded) return;
+    if (visibleModes.length > 0 && !visibleModes.some((item) => item.key === mode)) {
+      setMode(visibleModes[0].key);
+    }
+  }, [mode, videoConfigLoaded, visibleModes]);
 
   useEffect(() => {
     const configs = videoConfigs.filter((config) => config.mode === mode);
@@ -400,7 +417,7 @@ export default function VideoStudioPage() {
 
           <div className="mt-8 w-full overflow-x-auto">
             <div className="inline-flex items-center gap-1 rounded-full border border-[#ded8cd]/70 bg-[#f2f0ec] p-0.5 whitespace-nowrap">
-              {modes.map((item) => {
+              {visibleModes.map((item) => {
                 const Icon = item.icon;
                 const active = mode === item.key;
                 return (
@@ -415,7 +432,13 @@ export default function VideoStudioPage() {
 
           <div className="mt-6 space-y-5">
             <section className="rounded-[30px] border border-[#ded8cd] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] sm:p-7">
-              <ModeEditor mode={mode} prompt={prompt} setPrompt={setPrompt} model={model} setModel={setModel} modelOptions={modelOptions} ratio={ratio} setRatio={setRatio} ratioOptions={ratioOptions} duration={duration} setDuration={setDuration} durationOptions={durationOptions} resolution={resolution} setResolution={setResolution} resolutionOptions={resolutionOptions} cost={cost} phase={phase} canGenerate={canGenerate} onGenerate={generate} oneClickAssets={oneClickAssets} setOneClickAssets={setOneClickAssets} firstFrameAssets={firstFrameAssets} setFirstFrameAssets={setFirstFrameAssets} lastFrameAssets={lastFrameAssets} setLastFrameAssets={setLastFrameAssets} repProductAssets={repProductAssets} setRepProductAssets={setRepProductAssets} repVideoAssets={repVideoAssets} setRepVideoAssets={setRepVideoAssets} />
+              {visibleModes.length > 0 ? (
+                <ModeEditor mode={mode} prompt={prompt} setPrompt={setPrompt} model={model} setModel={setModel} modelOptions={modelOptions} ratio={ratio} setRatio={setRatio} ratioOptions={ratioOptions} duration={duration} setDuration={setDuration} durationOptions={durationOptions} resolution={resolution} setResolution={setResolution} resolutionOptions={resolutionOptions} cost={cost} phase={phase} canGenerate={canGenerate} onGenerate={generate} oneClickAssets={oneClickAssets} setOneClickAssets={setOneClickAssets} firstFrameAssets={firstFrameAssets} setFirstFrameAssets={setFirstFrameAssets} lastFrameAssets={lastFrameAssets} setLastFrameAssets={setLastFrameAssets} repProductAssets={repProductAssets} setRepProductAssets={setRepProductAssets} repVideoAssets={repVideoAssets} setRepVideoAssets={setRepVideoAssets} />
+              ) : (
+                <div className="flex min-h-[260px] items-center justify-center rounded-3xl border border-dashed border-[#ded8cd] bg-[#fbfaf8] px-6 text-center text-sm font-semibold text-[#697080]">
+                  暂无可用视频生成模式，请在后台开启视频模型配置。
+                </div>
+              )}
             </section>
 
             <section className="rounded-[30px] border border-[#ded8cd] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] sm:p-7">
