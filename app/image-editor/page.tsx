@@ -4,7 +4,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken } from "@/components/auth-state";
 import { downloadImage } from "@/lib/download-image";
-import { ChevronDown, Download, Loader2, Plus, RefreshCw, Send, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Copy, CornerDownLeft, Download, Loader2, Plus, RefreshCw, Send, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import type { ClipboardEvent, DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -31,6 +31,7 @@ type Message = {
   text: string;
   images?: string[];
   aspectRatio?: string;
+  request?: GenerationRequest;
   retryRequest?: GenerationRequest;
   elapsedSeconds?: number;
   status?: "loading" | "done" | "failed";
@@ -322,8 +323,12 @@ function recordsToMessages(records: GenerationRecord[]): Message[] {
         recordId: id,
         role: "user",
         text: record.prompt || "",
-        images: uploadPaths
+        images: uploadPaths,
+        request: retryRequest
       };
+      if (record.status === "failed" && outputPaths.length === 0) {
+        return [userMessage];
+      }
       const assistantMessage: Message = {
         id: id * 2 + 1,
         conversationId: id,
@@ -357,6 +362,9 @@ function UniversalImageContent() {
   const [lightboxImage, setLightboxImage] = useState("");
   const [modelConfigs, setModelConfigs] = useState<ModelConfig[]>([]);
   const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<number>>(new Set());
+  const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ conversationId: number; recordId?: number } | null>(null);
+  const [deletingConversation, setDeletingConversation] = useState(false);
 
   const count = 1;
   const modelOptions = useMemo(() => (modelConfigs.length > 0 ? modelConfigs.map((item) => item.model_name) : defaultModels), [modelConfigs]);
@@ -538,7 +546,8 @@ function UniversalImageContent() {
       conversationId: messageId,
       role: "user",
       text: request.prompt,
-      images: request.images
+      images: request.images,
+      request
     };
     const loadingMessage: Message = {
       id: loadingMessageId,
@@ -643,7 +652,7 @@ function UniversalImageContent() {
 
   async function hideConversation(conversationId: number, recordId?: number) {
     const targetId = recordId || conversationId;
-    if (!token || !targetId) return;
+    if (!token || !targetId) return false;
     try {
       const response = await fetch(`${apiBase}/api/generations/hide`, {
         method: "POST",
@@ -660,8 +669,55 @@ function UniversalImageContent() {
         next.add(targetId);
         return next;
       });
+      return true;
     } catch (event) {
       setError(event instanceof Error ? event.message : "删除失败，请稍后重试");
+      return false;
+    }
+  }
+
+  async function copyPrompt(message: Message) {
+    try {
+      await navigator.clipboard.writeText(message.text || "");
+      setCopiedMessageId(message.id);
+      window.setTimeout(() => setCopiedMessageId((current) => (current === message.id ? null : current)), 1600);
+    } catch {
+      setError("复制失败，请手动复制提示词");
+    }
+  }
+
+  function quoteMessage(message: Message) {
+    const request = message.request || {
+      prompt: message.text || "",
+      model,
+      resolution: activeImageSize,
+      aspectRatio,
+      images: message.images || []
+    };
+    const nextModel = modelOptions.includes(request.model) ? request.model : model;
+    const nextSizes = configuredResolutions(modelConfigs, nextModel);
+    setModel(nextModel);
+    setImageSize(nextSizes.includes(request.resolution) ? request.resolution : nextSizes[0] || request.resolution || "1K");
+    setAspectRatio(request.aspectRatio || "auto");
+    setPrompt(request.prompt || "");
+    setUploadItems(
+      Array.from(new Set(request.images || []))
+        .slice(0, 10)
+        .map((src, index) => ({ id: `quoted-${message.id}-${index}`, src }))
+    );
+    window.setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 0);
+  }
+
+  async function confirmDeleteConversation() {
+    if (!pendingDelete) return;
+    setDeletingConversation(true);
+    try {
+      const deleted = await hideConversation(pendingDelete.conversationId, pendingDelete.recordId);
+      if (deleted) {
+        setPendingDelete(null);
+      }
+    } finally {
+      setDeletingConversation(false);
     }
   }
 
@@ -685,7 +741,13 @@ function UniversalImageContent() {
             {visibleMessages.map((message) => (
               <article key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 {message.role === "user" ? (
-                  <UserMessageContent text={message.text} images={message.images || []} />
+                  <UserMessageContent
+                    message={message}
+                    copied={copiedMessageId === message.id}
+                    onCopy={() => void copyPrompt(message)}
+                    onQuote={() => quoteMessage(message)}
+                    onDelete={() => setPendingDelete({ conversationId: message.conversationId, recordId: message.recordId })}
+                  />
                 ) : (
                   <AssistantMessageContent
                     message={message}
@@ -693,7 +755,6 @@ function UniversalImageContent() {
                     onSelect={(index) => setPreviewByMessage((current) => ({ ...current, [message.id]: index }))}
                     onPreview={setLightboxImage}
                     onRetry={(request) => void submitGeneration(request)}
-                    onDelete={(conversationId, recordId) => void hideConversation(conversationId, recordId)}
                   />
                 )}
               </article>
@@ -780,11 +841,32 @@ function UniversalImageContent() {
         </div>
       </section>
       {lightboxImage && <ImageLightbox src={lightboxImage} onClose={() => setLightboxImage("")} />}
+      {pendingDelete && (
+        <DeleteConversationDialog
+          deleting={deletingConversation}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => void confirmDeleteConversation()}
+        />
+      )}
     </main>
   );
 }
 
-function UserMessageContent({ text, images }: { text: string; images: string[] }) {
+function UserMessageContent({
+  message,
+  copied,
+  onCopy,
+  onQuote,
+  onDelete
+}: {
+  message: Message;
+  copied: boolean;
+  onCopy: () => void;
+  onQuote: () => void;
+  onDelete: () => void;
+}) {
+  const text = message.text;
+  const images = message.images || [];
   const columns = images.length <= 4 ? Math.max(images.length, 1) : Math.ceil(images.length / 2);
 
   return (
@@ -803,8 +885,67 @@ function UserMessageContent({ text, images }: { text: string; images: string[] }
           ))}
         </div>
       )}
-      <div className="max-w-[620px] rounded-[18px] bg-[#f0efed] px-4 py-3 text-left shadow-sm">
+      <div className="group max-w-[620px] rounded-[18px] bg-[#f0efed] px-4 py-3 text-left shadow-sm">
         <p className="whitespace-pre-wrap text-base font-normal leading-7 text-[#0d0d0d]">{text}</p>
+        <div className="mt-2 flex justify-end gap-1 opacity-70 transition group-hover:opacity-100">
+          <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[#7a808c] transition hover:bg-white hover:text-[#101827]" onClick={onCopy} aria-label="复制提示词" title="复制">
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+          <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[#7a808c] transition hover:bg-white hover:text-[#101827]" onClick={onQuote} aria-label="引用提示词" title="引用">
+            <CornerDownLeft className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[#7a808c] transition hover:bg-white hover:text-[#d92d20]" onClick={onDelete} aria-label="删除会话" title="删除">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteConversationDialog({
+  deleting,
+  onCancel,
+  onConfirm
+}: {
+  deleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#101827]/28 px-4 backdrop-blur-[2px]" onClick={onCancel}>
+      <div
+        className="w-full max-w-[360px] rounded-[18px] bg-white p-5 text-[#101827] shadow-[0_24px_80px_-32px_rgba(16,24,39,0.45)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-[#ff9d00]" />
+            <h2 className="text-base font-extrabold text-[#101827]">是否删除该条消息?</h2>
+          </div>
+          <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[#8a909b] transition hover:bg-[#f0efed] hover:text-[#101827]" onClick={onCancel} aria-label="关闭">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="mt-3 text-sm font-normal leading-6 text-[#4f5663]">删除后，聊天记录不可恢复，对话内的文件也将被彻底删除</p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            className="inline-flex h-10 min-w-[72px] items-center justify-center rounded-[10px] border border-[#ece8e1] bg-white px-5 text-sm font-semibold text-[#313846] transition hover:bg-[#f6f5f3]"
+            onClick={onCancel}
+            disabled={deleting}
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-10 min-w-[72px] items-center justify-center rounded-[10px] bg-[#ff3b3b] px-5 text-sm font-semibold text-white transition hover:bg-[#e42e2e] disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={onConfirm}
+            disabled={deleting}
+          >
+            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "删除"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -815,15 +956,13 @@ function AssistantMessageContent({
   selectedIndex,
   onSelect,
   onPreview,
-  onRetry,
-  onDelete
+  onRetry
 }: {
   message: Message;
   selectedIndex: number;
   onSelect: (index: number) => void;
   onPreview: (src: string) => void;
   onRetry: (request: GenerationRequest) => void;
-  onDelete: (conversationId: number, recordId?: number) => void;
 }) {
   if (message.status === "loading") {
     return <GenerationLoadingCard />;
@@ -834,7 +973,6 @@ function AssistantMessageContent({
       <GenerationLoadingCard
         failed
         onRetry={message.retryRequest ? () => onRetry(message.retryRequest as GenerationRequest) : undefined}
-        onDelete={() => onDelete(message.conversationId, message.recordId)}
       />
     );
   }
@@ -861,7 +999,7 @@ function AssistantMessageContent({
   );
 }
 
-function GenerationLoadingCard({ failed = false, onRetry, onDelete }: { failed?: boolean; onRetry?: () => void; onDelete?: () => void }) {
+function GenerationLoadingCard({ failed = false, onRetry }: { failed?: boolean; onRetry?: () => void }) {
   const dots = Array.from({ length: 126 }, (_, index) => {
     const col = index % 14;
     const row = Math.floor(index / 14);
@@ -895,17 +1033,6 @@ function GenerationLoadingCard({ failed = false, onRetry, onDelete }: { failed?:
                 title="重新生成"
               >
                 <RefreshCw className="h-4 w-4" />
-              </button>
-            ) : null}
-            {onDelete ? (
-              <button
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#d92d20] shadow-sm transition hover:bg-[#d92d20] hover:text-white"
-                type="button"
-                onClick={onDelete}
-                aria-label="删除记录"
-                title="删除记录"
-              >
-                <Trash2 className="h-4 w-4" />
               </button>
             ) : null}
           </div>
