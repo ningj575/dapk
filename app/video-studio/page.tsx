@@ -79,6 +79,18 @@ type VideoAssetsPayload = {
 type VideoModelConfigsPayload = {
   configs: VideoModelConfig[];
 };
+type VideoTemplate = {
+  key: Mode;
+  label: string;
+  hint: string;
+  result: string;
+  poster: string;
+  video: string;
+  assets: Array<{ type: "image" | "video"; src: string; label: string }>;
+};
+type VideoTemplatesPayload = {
+  templates: VideoTemplate[];
+};
 type ReferenceImagesPayload = {
   images: Array<{ path: string; url: string }>;
 };
@@ -144,6 +156,27 @@ const breadImages = [
   ["https://shopix-ai.company/video-demo/bread-bag-open.jpg", "收纳细节图"],
   ["https://shopix-ai.company/video-demo/bread-plush-pair.jpg", "材质近景图"]
 ];
+
+function templateAssetsForMode(mode: Mode): VideoTemplate["assets"] {
+  if (mode === "one-click-2") {
+    return breadImages.map(([src, label]) => ({ type: "image", src, label }));
+  }
+  if (mode === "first-last-2") {
+    return [
+      { type: "image", src: "https://shopix-ai.company/video-demo/serum-first-frame.jpg", label: "首帧" },
+      { type: "image", src: "https://shopix-ai.company/video-demo/serum-last-frame.jpg", label: "尾帧" }
+    ];
+  }
+  return [
+    { type: "image", src: "https://shopix-ai.company/video-demo/fashion-product.jpg", label: "产品图" },
+    { type: "video", src: "https://shopix-ai.company/video-demo/fashion-reference.mp4", label: "产品图 + 参考视频" }
+  ];
+}
+
+const fallbackTemplateTabs = templateTabs.map((item) => ({
+  ...item,
+  assets: templateAssetsForMode(item.key)
+})) as VideoTemplate[];
 
 export default function VideoStudioPage() {
   const token = useAuthToken();
@@ -516,7 +549,30 @@ export default function VideoStudioPage() {
 
 function TemplateShowcase({ onBack, onEnter }: { onBack: () => void; onEnter: (mode: Mode) => void }) {
   const [selected, setSelected] = useState<Mode>("one-click-2");
-  const active = templateTabs.find((item) => item.key === selected) ?? templateTabs[0];
+  const [templates, setTemplates] = useState<VideoTemplate[]>(fallbackTemplateTabs);
+  const active = templates.find((item) => item.key === selected) ?? templates[0] ?? fallbackTemplateTabs[0];
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`${apiBase}/api/video-templates`)
+      .then((response) => readApi<VideoTemplatesPayload>(response))
+      .then((result) => {
+        if (!alive) return;
+        const rows = (result.data.templates || []).filter((item) => item.video);
+        if (rows.length > 0) {
+          setTemplates(rows);
+          if (!rows.some((item) => item.key === selected)) {
+            setSelected(rows[0].key);
+          }
+        }
+      })
+      .catch(() => {
+        // Keep local fallback templates if the API is temporarily unavailable.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [selected]);
 
   return (
     <div className="min-h-screen bg-[#faf9f7] text-[#101827]">
@@ -537,7 +593,7 @@ function TemplateShowcase({ onBack, onEnter }: { onBack: () => void; onEnter: (m
         <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,1.05fr)]">
           <section className="rounded-[28px] border border-[#ded8cd] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)] sm:p-6">
             <div className="grid gap-2 sm:grid-cols-3">
-              {templateTabs.map((item) => {
+              {templates.map((item) => {
                 const activeTab = selected === item.key;
                 return (
                   <button key={item.key} className={`group min-h-[92px] rounded-2xl border p-3 text-left transition ${activeTab ? "border-[#101827] bg-[#101827] text-white shadow-sm" : "border-[#ded8cd] bg-[#f6f5f3] text-[#101827] hover:border-[#8b93a1]"}`} type="button" onClick={() => setSelected(item.key)}>
@@ -563,12 +619,14 @@ function TemplateShowcase({ onBack, onEnter }: { onBack: () => void; onEnter: (m
                 <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">就绪</span>
               </div>
 
-              {selected === "one-click-2" && (
+              <TemplateAssetGrid assets={active.assets || []} mode={selected} poster={active.poster} />
+
+              {false && selected === "one-click-2" && (
                 <div className="mt-5 grid grid-cols-3 gap-2.5">
                   {breadImages.map(([src, label]) => <ImageTile key={src} src={src} label={label} />)}
                 </div>
               )}
-              {selected === "video-rep-4" && (
+              {false && selected === "video-rep-4" && (
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <ImageTile src="https://shopix-ai.company/video-demo/fashion-product.jpg" label="产品图" aspect="aspect-[3/4]" />
                   <div className="relative overflow-hidden rounded-2xl border border-[#ded8cd] bg-black aspect-[3/4]">
@@ -577,7 +635,7 @@ function TemplateShowcase({ onBack, onEnter }: { onBack: () => void; onEnter: (m
                   </div>
                 </div>
               )}
-              {selected === "first-last-2" && (
+              {false && selected === "first-last-2" && (
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <ImageTile src="https://shopix-ai.company/video-demo/serum-first-frame.jpg" label="首帧" aspect="aspect-[4/5]" />
                   <ImageTile src="https://shopix-ai.company/video-demo/serum-last-frame.jpg" label="尾帧" aspect="aspect-[4/5]" />
@@ -986,6 +1044,32 @@ function FloatingPromos() {
         <CircleDollarSign className="h-4 w-4" />
         首充 / 累充优惠
       </Link>
+    </div>
+  );
+}
+
+function TemplateAssetGrid({ assets, mode, poster }: { assets: VideoTemplate["assets"]; mode: Mode; poster?: string }) {
+  if (!assets.length) {
+    return (
+      <div className="mt-5 rounded-2xl border border-dashed border-[#ded8cd] bg-white/70 px-4 py-10 text-center text-xs font-semibold text-[#697080]">
+        暂无模板素材
+      </div>
+    );
+  }
+  const columns = mode === "one-click-2" ? "grid-cols-3" : "grid-cols-2";
+  const aspect = mode === "one-click-2" ? "aspect-square" : "aspect-[4/5]";
+  return (
+    <div className={`mt-5 grid gap-3 ${columns}`}>
+      {assets.map((asset, index) => (
+        asset.type === "video" ? (
+          <div key={`${asset.src}-${index}`} className={`relative overflow-hidden rounded-2xl border border-[#ded8cd] bg-black ${aspect}`}>
+            <video className="h-full w-full object-cover" muted playsInline poster={poster} preload="metadata" src={videoFramePreviewSrc(asset.src)} />
+            <span className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-center text-[10px] font-semibold text-[#101827] shadow-sm">{asset.label || "参考视频"}</span>
+          </div>
+        ) : (
+          <ImageTile key={`${asset.src}-${index}`} src={asset.src} label={asset.label || "参考图"} aspect={aspect} />
+        )
+      ))}
     </div>
   );
 }
