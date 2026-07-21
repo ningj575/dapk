@@ -4,7 +4,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken } from "@/components/auth-state";
 import { downloadImage } from "@/lib/download-image";
-import { ChevronDown, Download, Loader2, Plus, RefreshCw, Send, Sparkles, X } from "lucide-react";
+import { ChevronDown, Download, Loader2, Plus, RefreshCw, Send, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import type { ClipboardEvent, DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -25,6 +25,8 @@ type GenerationRequest = {
 
 type Message = {
   id: number;
+  conversationId: number;
+  recordId?: number;
   role: "user" | "assistant";
   text: string;
   images?: string[];
@@ -82,6 +84,11 @@ type GenerationRecord = {
   media_url?: string;
   uploaded_image_paths?: string;
   aspect_ratio?: string;
+  resolution?: string;
+  model?: string;
+  model_name?: string;
+  status?: string;
+  error_message?: string;
   cost_credits?: number;
   created_at?: string;
 };
@@ -301,19 +308,32 @@ function recordsToMessages(records: GenerationRecord[]): Message[] {
         .map((item) => item.trim())
         .filter(Boolean)
         .map(mediaUrl);
+      const retryRequest: GenerationRequest = {
+        prompt: record.prompt || "",
+        model: record.model_name || record.model || defaultModels[0],
+        resolution: record.resolution || "1K",
+        aspectRatio: record.aspect_ratio || "auto",
+        images: uploadPaths
+      };
+      const status = record.status === "failed" ? "failed" : outputPaths.length > 0 ? "done" : "loading";
       const userMessage: Message = {
         id: id * 2,
+        conversationId: id,
+        recordId: id,
         role: "user",
         text: record.prompt || "",
         images: uploadPaths
       };
       const assistantMessage: Message = {
         id: id * 2 + 1,
+        conversationId: id,
+        recordId: id,
         role: "assistant",
         text: "",
         images: outputPaths,
         aspectRatio: record.aspect_ratio || "auto",
-        status: "done"
+        retryRequest,
+        status
       };
       return [userMessage, assistantMessage];
     });
@@ -336,12 +356,17 @@ function UniversalImageContent() {
   const [previewByMessage, setPreviewByMessage] = useState<Record<number, number>>({});
   const [lightboxImage, setLightboxImage] = useState("");
   const [modelConfigs, setModelConfigs] = useState<ModelConfig[]>([]);
+  const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<number>>(new Set());
 
   const count = 1;
   const modelOptions = useMemo(() => (modelConfigs.length > 0 ? modelConfigs.map((item) => item.model_name) : defaultModels), [modelConfigs]);
   const imageSizeOptions = useMemo(() => configuredResolutions(modelConfigs, model), [model, modelConfigs]);
   const activeImageSize = imageSizeOptions.includes(imageSize) ? imageSize : imageSizeOptions[0] || "1K";
   const cost = configuredCost(modelConfigs, model, activeImageSize, 50);
+  const visibleMessages = useMemo(
+    () => messages.filter((message) => !hiddenConversationIds.has(message.conversationId)),
+    [hiddenConversationIds, messages]
+  );
 
   useEffect(() => {
     if (!token) return;
@@ -510,12 +535,14 @@ function UniversalImageContent() {
     const loadingMessageId = messageId + 1;
     const userMessage: Message = {
       id: messageId,
+      conversationId: messageId,
       role: "user",
       text: request.prompt,
       images: request.images
     };
     const loadingMessage: Message = {
       id: loadingMessageId,
+      conversationId: messageId,
       role: "assistant",
       text: "",
       aspectRatio: request.aspectRatio,
@@ -549,6 +576,17 @@ function UniversalImageContent() {
       if (!result.data.id) {
         throw new Error("生成任务创建失败");
       }
+      setMessages((items) =>
+        items.map((message) =>
+          message.conversationId === messageId
+            ? {
+                ...message,
+                conversationId: result.data.id,
+                recordId: result.data.id
+              }
+            : message
+        )
+      );
 
       const immediateImages = (result.data.images || []).map(mediaUrl);
       if (immediateImages.length === 0 || result.data.done === false || result.data.status === "processing") {
@@ -603,12 +641,36 @@ function UniversalImageContent() {
     await submitGeneration(request);
   }
 
+  async function hideConversation(conversationId: number, recordId?: number) {
+    const targetId = recordId || conversationId;
+    if (!token || !targetId) return;
+    try {
+      const response = await fetch(`${apiBase}/api/generations/hide`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ id: targetId })
+      });
+      await readApi<{ id: number }>(response);
+      setHiddenConversationIds((current) => {
+        const next = new Set(current);
+        next.add(conversationId);
+        next.add(targetId);
+        return next;
+      });
+    } catch (event) {
+      setError(event instanceof Error ? event.message : "删除失败，请稍后重试");
+    }
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-[#faf9f7] text-[#101827]">
       <AppHeader />
 
       <section className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col px-4 pb-[260px] pt-8 sm:px-6 sm:pb-[220px]">
-        {messages.length === 0 ? (
+        {visibleMessages.length === 0 ? (
           <div className="flex min-h-[52vh] flex-col items-center justify-center text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#101827] text-white shadow-[0_18px_50px_-26px_rgba(16,24,39,0.75)]">
               <Sparkles className="h-8 w-8" />
@@ -620,7 +682,7 @@ function UniversalImageContent() {
           </div>
         ) : (
           <div className="space-y-8">
-            {messages.map((message) => (
+            {visibleMessages.map((message) => (
               <article key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 {message.role === "user" ? (
                   <UserMessageContent text={message.text} images={message.images || []} />
@@ -631,6 +693,7 @@ function UniversalImageContent() {
                     onSelect={(index) => setPreviewByMessage((current) => ({ ...current, [message.id]: index }))}
                     onPreview={setLightboxImage}
                     onRetry={(request) => void submitGeneration(request)}
+                    onDelete={(conversationId, recordId) => void hideConversation(conversationId, recordId)}
                   />
                 )}
               </article>
@@ -752,20 +815,28 @@ function AssistantMessageContent({
   selectedIndex,
   onSelect,
   onPreview,
-  onRetry
+  onRetry,
+  onDelete
 }: {
   message: Message;
   selectedIndex: number;
   onSelect: (index: number) => void;
   onPreview: (src: string) => void;
   onRetry: (request: GenerationRequest) => void;
+  onDelete: (conversationId: number, recordId?: number) => void;
 }) {
   if (message.status === "loading") {
     return <GenerationLoadingCard />;
   }
 
   if (message.status === "failed") {
-    return <GenerationLoadingCard failed onRetry={message.retryRequest ? () => onRetry(message.retryRequest as GenerationRequest) : undefined} />;
+    return (
+      <GenerationLoadingCard
+        failed
+        onRetry={message.retryRequest ? () => onRetry(message.retryRequest as GenerationRequest) : undefined}
+        onDelete={() => onDelete(message.conversationId, message.recordId)}
+      />
+    );
   }
 
   if (!message.images || message.images.length === 0) {
@@ -790,7 +861,7 @@ function AssistantMessageContent({
   );
 }
 
-function GenerationLoadingCard({ failed = false, onRetry }: { failed?: boolean; onRetry?: () => void }) {
+function GenerationLoadingCard({ failed = false, onRetry, onDelete }: { failed?: boolean; onRetry?: () => void; onDelete?: () => void }) {
   const dots = Array.from({ length: 126 }, (_, index) => {
     const col = index % 14;
     const row = Math.floor(index / 14);
@@ -803,7 +874,7 @@ function GenerationLoadingCard({ failed = false, onRetry }: { failed?: boolean; 
   return (
     <div className="w-[min(480px,calc(100vw-32px))]">
       <p className={`mb-4 text-sm font-semibold ${failed ? "text-red-600" : "text-[#697080]"}`}>{failed ? "生图失败" : "正在生成更细致的图片，请稍候。"}</p>
-      <div className="overflow-hidden rounded-[28px] bg-[#f2f2f1] px-6 py-8 shadow-sm">
+      <div className="relative overflow-hidden rounded-[28px] bg-[#f2f2f1] px-6 py-8 shadow-sm">
         <div className="grid gap-x-5 gap-y-5" style={{ gridTemplateColumns: "repeat(14, minmax(0, 1fr))" }}>
           {dots.map((dot) => (
             <span
@@ -813,13 +884,33 @@ function GenerationLoadingCard({ failed = false, onRetry }: { failed?: boolean; 
             />
           ))}
         </div>
+        {failed ? (
+          <div className="absolute bottom-3 right-3 flex items-center gap-2">
+            {onRetry ? (
+              <button
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#101827] shadow-sm transition hover:bg-[#101827] hover:text-white"
+                type="button"
+                onClick={onRetry}
+                aria-label="重新生成"
+                title="重新生成"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            ) : null}
+            {onDelete ? (
+              <button
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#d92d20] shadow-sm transition hover:bg-[#d92d20] hover:text-white"
+                type="button"
+                onClick={onDelete}
+                aria-label="删除记录"
+                title="删除记录"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
-      {failed && onRetry ? (
-        <button className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-[#101827] px-5 text-sm font-bold text-white transition hover:bg-black" type="button" onClick={onRetry}>
-          <RefreshCw className="h-4 w-4" />
-          重新生成
-        </button>
-      ) : null}
       <style>{`
         @keyframes universalImageDotPulse {
           0%, 100% {
