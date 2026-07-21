@@ -48,7 +48,7 @@ type MainImagePayload = {
   cost_credits: number;
   user: DakeUser;
 };
-type ImageTask = { id: number; task_index: number; task_id: string; status: string; image_url?: string; error_message?: string };
+type ImageTask = { id: number; task_index: number; task_id: string; status: string; image_url?: string; error_message?: string; progress?: number };
 type ImageTaskStatusPayload = {
   id: number;
   status: string;
@@ -1322,8 +1322,17 @@ function DetailResult({ quantity, ratio, images, tasks, phase, retryingTaskId, o
 function ResultSlot({ mode, index, ratio, task, image, active, retrying, onRetry, onPreview }: { mode: StudioMode; index: number; ratio: string; task: ImageTask | null; image: string; active: boolean; retrying: boolean; onRetry?: () => void; onPreview?: () => void }) {
   const failed = task?.status === "failed";
   const waiting = !image && !failed;
+  const progress = image ? 100 : Math.max(0, Math.min(99, Number(task?.progress || 0)));
   return (
     <div className="group relative overflow-hidden rounded-[22px] border border-[#e1dbd0] bg-[#f6f3ed]">
+      {waiting && (
+        <>
+          <div className="absolute right-3 top-3 z-10 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-[#101827] shadow-sm">{progress}%</div>
+          <div className="absolute inset-x-4 bottom-3 z-10 h-1.5 overflow-hidden rounded-full bg-white/85">
+            <div className="h-full rounded-full bg-[#101827] transition-all" style={{ width: `${Math.max(6, progress)}%` }} />
+          </div>
+        </>
+      )}
       <div className="p-4" style={{ aspectRatio: aspectRatioStyle(ratio) }}>
         <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[18px] bg-gradient-to-br from-[#fffdf9] via-[#f4f1ea] to-[#ebe3d8]">
           {image ? (
