@@ -43,6 +43,8 @@ type VideoJob = {
   mode: Mode;
   src: string;
   poster: string;
+  aspect_ratio?: string;
+  resolution?: string;
   progress?: number;
   cost_credits?: number;
   error_message?: string;
@@ -256,7 +258,7 @@ export default function VideoStudioPage() {
     if (!activeVideoConfig) return false;
     const hasPrompt = prompt.trim().length > 0;
     if (mode === "one-click-2") return hasPrompt && oneClickAssets.length > 0;
-    if (mode === "first-last-2") return firstFrameAssets.length > 0 && lastFrameAssets.length > 0;
+    if (mode === "first-last-2") return hasPrompt && firstFrameAssets.length > 0;
     return repProductAssets.length > 0 && repVideoAssets.length > 0;
   }, [activeVideoConfig, firstFrameAssets.length, lastFrameAssets.length, mode, oneClickAssets.length, prompt, repProductAssets.length, repVideoAssets.length]);
 
@@ -382,9 +384,9 @@ export default function VideoStudioPage() {
         return;
       }
       if (firstFrameAssets.length === 0) {
-        setFirstFrameAssets((current) => appendLibraryAssets(current, asset, 5));
+        setFirstFrameAssets((current) => appendLibraryAssets(current, asset, 1));
       } else {
-        setLastFrameAssets((current) => appendLibraryAssets(current, asset, 5));
+        setLastFrameAssets((current) => appendLibraryAssets(current, asset, 1));
       }
       return;
     }
@@ -549,8 +551,9 @@ export default function VideoStudioPage() {
 
 function TemplateShowcase({ onBack, onEnter }: { onBack: () => void; onEnter: (mode: Mode) => void }) {
   const [selected, setSelected] = useState<Mode>("one-click-2");
-  const [templates, setTemplates] = useState<VideoTemplate[]>(fallbackTemplateTabs);
-  const active = templates.find((item) => item.key === selected) ?? templates[0] ?? fallbackTemplateTabs[0];
+  const [templates, setTemplates] = useState<VideoTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const active = templates.find((item) => item.key === selected) ?? templates[0] ?? null;
 
   useEffect(() => {
     let alive = true;
@@ -564,15 +567,37 @@ function TemplateShowcase({ onBack, onEnter }: { onBack: () => void; onEnter: (m
           if (!rows.some((item) => item.key === selected)) {
             setSelected(rows[0].key);
           }
+        } else {
+          setTemplates([]);
         }
       })
       .catch(() => {
-        // Keep local fallback templates if the API is temporarily unavailable.
+        if (alive) setTemplates([]);
+      })
+      .finally(() => {
+        if (alive) setLoadingTemplates(false);
       });
     return () => {
       alive = false;
     };
-  }, [selected]);
+  }, []);
+
+  if (loadingTemplates || !active) {
+    return (
+      <div className="min-h-screen bg-[#faf9f7] text-[#101827]">
+        <AppHeader />
+        <main className="mx-auto max-w-[1120px] px-5 pb-24 pt-16 sm:px-8 sm:pt-20">
+          <button className="mb-4 inline-flex h-9 items-center gap-2 rounded-full border border-[#ded8cd] bg-white px-4 text-xs font-bold text-[#697080] transition hover:border-[#8b93a1] hover:text-[#101827]" type="button" onClick={onBack}>
+            <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+            返回
+          </button>
+          <div className="flex min-h-[360px] items-center justify-center rounded-[28px] border border-dashed border-[#ded8cd] bg-white px-6 text-sm font-semibold text-[#697080]">
+            {loadingTemplates ? "正在加载视频模板..." : "暂无可用视频模板"}
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#faf9f7] text-[#101827]">
@@ -651,8 +676,8 @@ function TemplateShowcase({ onBack, onEnter }: { onBack: () => void; onEnter: (m
 
           <section className="rounded-[28px] border border-[#ded8cd] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)] sm:p-6">
             <p className="mb-3 text-sm font-bold text-[#101827]">{active.result}</p>
-            <div className="relative mx-auto aspect-[9/16] max-h-[620px] w-full max-w-[360px] overflow-hidden rounded-[26px] bg-zinc-950 shadow-[0_22px_60px_-28px_rgba(0,0,0,0.55)]">
-              <video key={active.video} className="h-full w-full object-cover" controls muted playsInline poster={active.poster} preload="none" src={active.video} />
+            <div className="relative mx-auto aspect-video w-full max-w-[720px] overflow-hidden rounded-[26px] bg-zinc-950 shadow-[0_22px_60px_-28px_rgba(0,0,0,0.55)]">
+              <video key={active.video} className="h-full w-full object-cover" controls muted playsInline preload="metadata" src={videoFramePreviewSrc(active.video)} />
             </div>
           </section>
         </div>
@@ -725,7 +750,7 @@ function ModeEditor({
   return (
     <div className="space-y-4">
       {mode === "one-click-2" && <OneClickProductForm items={oneClickAssets} onChange={setOneClickAssets} />}
-      {mode === "first-last-2" && <FirstLastForm firstItems={firstFrameAssets} onFirstChange={setFirstFrameAssets} lastItems={lastFrameAssets} onLastChange={setLastFrameAssets} />}
+      {mode === "first-last-2" && <FirstLastSingleForm firstItems={firstFrameAssets} onFirstChange={setFirstFrameAssets} lastItems={lastFrameAssets} onLastChange={setLastFrameAssets} />}
       {mode === "video-rep-4" && <VideoReplicationForm productItems={repProductAssets} onProductChange={setRepProductAssets} videoItems={repVideoAssets} onVideoChange={setRepVideoAssets} />}
 
       {mode === "one-click-2" && (
@@ -792,12 +817,21 @@ function OneClickProductForm({ items, onChange }: { items: UploadPreview[]; onCh
   );
 }
 
-function UploadBox({ title, desc, items, onChange, video = false, compact = false, large = false }: { title: string; desc: string; items: UploadPreview[]; onChange: (items: UploadPreview[]) => void; video?: boolean; compact?: boolean; large?: boolean }) {
-  const maxFiles = video ? 1 : large ? 6 : 5;
+function FirstLastSingleForm({ firstItems, onFirstChange, lastItems, onLastChange }: { firstItems: UploadPreview[]; onFirstChange: (items: UploadPreview[]) => void; lastItems: UploadPreview[]; onLastChange: (items: UploadPreview[]) => void }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <UploadBox title="首帧" desc="视频开始画面，必传" compact maxFiles={1} items={firstItems} onChange={onFirstChange} />
+      <UploadBox title="尾帧" desc="视频结束画面，选填" compact maxFiles={1} items={lastItems} onChange={onLastChange} />
+    </div>
+  );
+}
+
+function UploadBox({ title, desc, items, onChange, video = false, compact = false, large = false, maxFiles }: { title: string; desc: string; items: UploadPreview[]; onChange: (items: UploadPreview[]) => void; video?: boolean; compact?: boolean; large?: boolean; maxFiles?: number }) {
+  const limit = maxFiles ?? (video ? 1 : large ? 6 : 5);
 
   async function onFiles(files?: FileList | File[] | null) {
     if (!files || files.length === 0) return;
-    const slots = Math.max(0, maxFiles - items.length);
+    const slots = Math.max(0, limit - items.length);
     const selected = Array.from(files).filter((file) => video ? file.type.startsWith("video/") : file.type.startsWith("image/")).slice(0, slots);
     const previews = await Promise.all(
       selected.map(
@@ -815,7 +849,7 @@ function UploadBox({ title, desc, items, onChange, video = false, compact = fals
           })
       )
     );
-    onChange(video ? previews.slice(0, 1) : [...items, ...previews]);
+    onChange(video ? previews.slice(0, 1) : [...items, ...previews].slice(0, limit));
   }
 
   return (
@@ -831,9 +865,9 @@ function UploadBox({ title, desc, items, onChange, video = false, compact = fals
     >
       <input className="hidden" type="file" accept={video ? "video/*,.mp4,.mov" : "image/*"} multiple={!video} onChange={(event) => { void onFiles(event.target.files); event.currentTarget.value = ""; }} />
       {items.length > 0 ? (
-        <div className={video ? "space-y-3" : "grid grid-cols-3 gap-3 sm:grid-cols-5"}>
+        <div className={video ? "space-y-3" : items.length === 1 ? "flex justify-center" : "grid grid-cols-3 gap-3 sm:grid-cols-5"}>
           {items.map((item) => (
-            <div key={item.id} className={`${video ? "aspect-video" : "aspect-square"} group relative overflow-hidden rounded-2xl border border-[#ded8cd] bg-white`}>
+            <div key={item.id} className={`${video ? "aspect-video" : "aspect-square"} ${!video && items.length === 1 ? "w-full max-w-[180px]" : ""} group relative overflow-hidden rounded-2xl border border-[#ded8cd] bg-white`}>
               {item.video ? (
                 <video className="h-full w-full object-cover" src={item.src} controls muted playsInline />
               ) : (
@@ -863,7 +897,7 @@ function UploadBox({ title, desc, items, onChange, video = false, compact = fals
           <p className="mt-1 max-w-[300px] text-xs leading-5 text-[#697080]">{desc}</p>
         </div>
       )}
-      {items.length > 0 && <p className="mt-3 text-center text-xs font-semibold text-[#697080]">点击空白区域可继续上传，最多 {maxFiles} 个素材</p>}
+      {items.length > 0 && <p className="mt-3 text-center text-xs font-semibold text-[#697080]">点击空白区域可继续上传，最多 {limit} 个素材</p>}
     </label>
   );
 }
@@ -873,12 +907,37 @@ function videoFramePreviewSrc(src: string) {
   return src.includes("#") ? src : `${src}#t=0.001`;
 }
 
+function ratioFromMeta(meta?: string) {
+  const match = String(meta || "").match(/(\d+\s*:\s*\d+)/);
+  return match ? match[1].replace(/\s+/g, "") : "";
+}
+
+function videoAspectClass(ratio?: string) {
+  const value = String(ratio || "").replace(/\s+/g, "");
+  if (value === "16:9") return "aspect-video max-w-[720px]";
+  if (value === "1:1") return "aspect-square max-w-[520px]";
+  if (value === "4:3") return "aspect-[4/3] max-w-[620px]";
+  if (value === "3:4") return "aspect-[3/4] max-w-[420px]";
+  if (value === "9:16") return "aspect-[9/16] max-h-[620px] max-w-[360px]";
+  return "aspect-video max-w-[720px]";
+}
+
+function videoAspectOnlyClass(ratio?: string) {
+  const value = String(ratio || "").replace(/\s+/g, "");
+  if (value === "1:1") return "aspect-square";
+  if (value === "4:3") return "aspect-[4/3]";
+  if (value === "3:4") return "aspect-[3/4]";
+  if (value === "9:16") return "aspect-[9/16]";
+  return "aspect-video";
+}
+
 function ResultPanel({ phase, job }: { phase: string; job: VideoJob | null }) {
   const generated = phase === "complete" && job?.status === "complete" && Boolean(job.src);
   const progress = Math.max(0, Math.min(100, job?.status === "complete" ? 100 : job?.progress ?? 0));
+  const generatedAspect = videoAspectClass(job?.aspect_ratio || ratioFromMeta(job?.meta));
   return (
     <div className="space-y-4">
-      <div className={`${generated ? "mx-auto aspect-[9/16] max-h-[620px] max-w-[360px] overflow-hidden bg-zinc-950 p-0" : "bg-[#fbfaf8] p-6 sm:p-8"} relative w-full rounded-[26px] border border-[#ded8cd] shadow-[0_22px_60px_-36px_rgba(0,0,0,0.24)]`}>
+      <div className={`${generated ? `mx-auto ${generatedAspect} overflow-hidden bg-zinc-950 p-0` : "bg-[#fbfaf8] p-6 sm:p-8"} relative w-full rounded-[26px] border border-[#ded8cd] shadow-[0_22px_60px_-36px_rgba(0,0,0,0.24)]`}>
         {phase === "generating" || phase === "analyzing" ? (
           <div className="flex min-h-[260px] flex-col items-center justify-center px-6 text-center text-[#101827]">
             <Loader2 className="h-8 w-8 animate-spin text-[#101827]" />
@@ -928,7 +987,7 @@ function RecentPanel({ jobs }: { jobs: VideoJob[] }) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {jobs.map((job) => (
           <div key={job.id} className="overflow-hidden rounded-2xl border border-[#ded8cd] bg-[#f6f5f3] text-left">
-            <div className="relative aspect-video bg-[#e8e4dd]">
+            <div className={`relative ${videoAspectOnlyClass(job.aspect_ratio || ratioFromMeta(job.meta))} bg-[#e8e4dd]`}>
               {job.status === "complete" && job.src ? (
                 <video className="h-full w-full object-cover" controls muted playsInline poster={job.poster || undefined} preload="metadata" src={videoFramePreviewSrc(job.src)} />
               ) : job.status === "failed" ? (
