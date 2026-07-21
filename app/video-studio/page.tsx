@@ -483,7 +483,7 @@ export default function VideoStudioPage() {
               <Film className="h-4 w-4" />
               视频生成
             </span>
-            <h1 className="mt-5 text-2xl font-semibold tracking-tight text-[#101827] sm:text-4xl">上传素材，生成你自己的视频</h1>
+            <h1 className="mt-5 text-2xl font-semibold tracking-tight text-[#101827] sm:text-4xl">体验视频生成，让创意摇动</h1>
           </div>
 
           <div className="mt-8 w-full overflow-x-auto">
@@ -612,7 +612,7 @@ function TemplateShowcase({ onBack, onEnter }: { onBack: () => void; onEnter: (m
             <Film className="h-4 w-4" />
             视频模板
           </span>
-          <h1 className="mt-4 font-display text-2xl font-extrabold tracking-[-0.035em] text-[#101827] sm:text-4xl">先看 3 个效果</h1>
+          <h1 className="mt-4 font-display text-2xl font-extrabold tracking-[-0.035em] text-[#101827] sm:text-4xl">视频创作案例</h1>
         </div>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,1.05fr)]">
@@ -867,12 +867,12 @@ function UploadBox({ title, desc, items, onChange, video = false, compact = fals
       {items.length > 0 ? (
         <div className={video ? "space-y-3" : items.length === 1 ? "flex justify-center" : "grid grid-cols-3 gap-3 sm:grid-cols-5"}>
           {items.map((item) => (
-            <div key={item.id} className={`${video ? "aspect-video" : "aspect-square"} ${!video && items.length === 1 ? "w-full max-w-[180px]" : ""} group relative overflow-hidden rounded-2xl border border-[#ded8cd] bg-white`}>
+            <div key={item.id} className={`${video ? "aspect-video" : "flex min-h-[120px] items-center justify-center"} ${!video && items.length === 1 ? "w-full max-w-[220px]" : ""} group relative overflow-hidden rounded-2xl border border-[#ded8cd] bg-white`}>
               {item.video ? (
                 <video className="h-full w-full object-cover" src={item.src} controls muted playsInline />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img className="h-full w-full object-cover" src={item.src} alt={item.name} />
+                <img className="max-h-[220px] w-auto max-w-full object-contain" src={item.src} alt={item.name} />
               )}
               <button
                 className="absolute right-2 top-2 hidden h-7 w-7 items-center justify-center rounded-full bg-[#101827]/75 text-white group-hover:flex"
@@ -897,7 +897,7 @@ function UploadBox({ title, desc, items, onChange, video = false, compact = fals
           <p className="mt-1 max-w-[300px] text-xs leading-5 text-[#697080]">{desc}</p>
         </div>
       )}
-      {items.length > 0 && <p className="mt-3 text-center text-xs font-semibold text-[#697080]">点击空白区域可继续上传，最多 {limit} 个素材</p>}
+      {items.length > 0 && limit > 1 && <p className="mt-3 text-center text-xs font-semibold text-[#697080]">点击空白区域可继续上传，最多 {limit} 个素材</p>}
     </label>
   );
 }
@@ -1028,17 +1028,17 @@ function AssetsPanel({ assets, onUseAsset }: { assets: UploadPreview[]; onUseAss
       <span className="text-xs text-[#697080]">视频生成模块上传的素材</span>
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
         {assets.map((asset) => (
-          <button key={asset.id} className="group relative aspect-square overflow-hidden rounded-xl border border-[#ded8cd] bg-[#f6f5f3] text-left transition hover:border-[#101827]" type="button" onClick={() => onUseAsset(asset)}>
+          <button key={asset.id} className="group relative flex min-h-[120px] items-center justify-center overflow-hidden rounded-xl border border-[#ded8cd] bg-[#f6f5f3] text-left transition hover:border-[#101827]" type="button" onClick={() => onUseAsset(asset)}>
             {asset.video ? (
               <>
-                <video className="h-full w-full object-cover" muted playsInline preload="metadata" src={asset.src} />
+                <video className="h-full w-full object-contain" muted playsInline preload="metadata" src={asset.src} />
                 <span className="absolute inset-0 flex items-center justify-center bg-black/10">
                   <Play className="h-5 w-5 text-white drop-shadow" />
                 </span>
               </>
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={asset.src} alt={asset.name} className="h-full w-full object-cover" />
+              <img src={asset.src} alt={asset.name} className="max-h-[180px] w-auto max-w-full object-contain" />
             )}
             <span className="absolute inset-x-2 bottom-2 hidden rounded-full bg-[#101827]/85 px-2 py-1 text-center text-[10px] font-semibold text-white group-hover:block">添加到上方</span>
           </button>
@@ -1116,28 +1116,28 @@ function TemplateAssetGrid({ assets, mode, poster }: { assets: VideoTemplate["as
     );
   }
   const columns = mode === "one-click-2" ? "grid-cols-3" : "grid-cols-2";
-  const aspect = mode === "one-click-2" ? "aspect-square" : "aspect-[4/5]";
+  const videoAspect = mode === "one-click-2" ? "aspect-video" : "aspect-[4/5]";
   return (
     <div className={`mt-5 grid gap-3 ${columns}`}>
       {assets.map((asset, index) => (
         asset.type === "video" ? (
-          <div key={`${asset.src}-${index}`} className={`relative overflow-hidden rounded-2xl border border-[#ded8cd] bg-black ${aspect}`}>
-            <video className="h-full w-full object-cover" muted playsInline poster={poster} preload="metadata" src={videoFramePreviewSrc(asset.src)} />
+          <div key={`${asset.src}-${index}`} className={`relative overflow-hidden rounded-2xl border border-[#ded8cd] bg-black ${videoAspect}`}>
+            <video className="h-full w-full object-contain" muted playsInline poster={poster} preload="metadata" src={videoFramePreviewSrc(asset.src)} />
             <span className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-center text-[10px] font-semibold text-[#101827] shadow-sm">{asset.label || "参考视频"}</span>
           </div>
         ) : (
-          <ImageTile key={`${asset.src}-${index}`} src={asset.src} label={asset.label || "参考图"} aspect={aspect} />
+          <ImageTile key={`${asset.src}-${index}`} src={asset.src} label={asset.label || "参考图"} />
         )
       ))}
     </div>
   );
 }
 
-function ImageTile({ src, label, aspect = "aspect-square" }: { src: string; label: string; aspect?: string }) {
+function ImageTile({ src, label }: { src: string; label: string; aspect?: string }) {
   return (
-    <div className={`group relative overflow-hidden rounded-2xl border border-[#ded8cd] bg-white ${aspect}`}>
+    <div className="group relative flex min-h-[120px] items-center justify-center overflow-hidden rounded-2xl border border-[#ded8cd] bg-white">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={label} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+      <img src={src} alt={label} className="max-h-[260px] w-auto max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]" />
       <div className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-center text-[10px] font-semibold text-[#101827] shadow-sm backdrop-blur">{label}</div>
     </div>
   );
