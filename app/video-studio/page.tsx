@@ -98,6 +98,7 @@ type ReferenceImagesPayload = {
 };
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const homeDraftKey = "dake_home_generation_draft";
 
 async function readApi<T>(response: Response): Promise<ApiResponse<T>> {
   const payload = (await response.json()) as ApiResponse<T>;
@@ -300,6 +301,27 @@ export default function VideoStudioPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [refreshRemoteData, refreshVideoConfigs]);
+
+  useEffect(() => {
+    if (!token) return;
+    try {
+      const raw = window.localStorage.getItem(homeDraftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { target?: string; prompt?: string; images?: string[]; createdAt?: number };
+      if (draft.target !== "/video-studio") return;
+      setMode("one-click-2");
+      setPrompts((current) => ({ ...current, "one-click-2": String(draft.prompt || "") }));
+      setOneClickAssets(
+        (Array.isArray(draft.images) ? draft.images : [])
+          .filter((src) => typeof src === "string" && src)
+          .slice(0, 6)
+          .map((src, index) => ({ id: `home-video-${index}`, src, name: `首页参考图 ${index + 1}`, video: false }))
+      );
+      window.localStorage.removeItem(homeDraftKey);
+    } catch {
+      window.localStorage.removeItem(homeDraftKey);
+    }
+  }, [token]);
 
   useEffect(() => {
     if (!videoConfigLoaded) return;

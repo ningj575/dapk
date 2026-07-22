@@ -107,6 +107,7 @@ const languageOptions = [
 ];
 const quantityOptions = Array.from({ length: 10 }, (_, index) => `${index + 1} 张`);
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const homeDraftKey = "dake_home_generation_draft";
 const maxReferenceImageSize = 30 * 1024 * 1024;
 const maxVisionReferenceImageSize = 9.5 * 1024 * 1024;
 
@@ -380,6 +381,29 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   useEffect(() => {
     if (!token) return;
     void refreshAuthUser(apiBase).catch(() => undefined);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    try {
+      const raw = window.localStorage.getItem(homeDraftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { target?: string; prompt?: string; images?: string[]; createdAt?: number };
+      const images = (Array.isArray(draft.images) ? draft.images : []).filter((src) => typeof src === "string" && src).slice(0, 6);
+      if (draft.target === "/studio-genesis") {
+        setMode("genesis");
+        setBrief(String(draft.prompt || ""));
+        setGenesisUploads(images);
+        window.localStorage.removeItem(homeDraftKey);
+      } else if (draft.target === "/ecom-studio") {
+        setMode("detail");
+        setDetailProductDescription(String(draft.prompt || ""));
+        setDetailUploads(images);
+        window.localStorage.removeItem(homeDraftKey);
+      }
+    } catch {
+      window.localStorage.removeItem(homeDraftKey);
+    }
   }, [token]);
 
   function switchMode(nextMode: StudioMode) {

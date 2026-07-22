@@ -123,6 +123,7 @@ const aspectRatios = ["auto", "1:1", "3:4", "4:3", "16:9", "9:16"];
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 const maxReferenceImageSize = 30 * 1024 * 1024;
 const maxReferenceImageSizeText = "30M";
+const homeDraftKey = "dake_home_generation_draft";
 
 function aspectRatioStyle(value?: string) {
   const match = String(value || "").match(/(\d+)\s*:\s*(\d+)/);
@@ -379,6 +380,26 @@ function UniversalImageContent() {
   useEffect(() => {
     if (!token) return;
     void refreshAuthUser(apiBase).catch(() => undefined);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    try {
+      const raw = window.localStorage.getItem(homeDraftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { target?: string; prompt?: string; images?: string[]; createdAt?: number };
+      if (draft.target !== "/image-editor") return;
+      setPrompt(String(draft.prompt || ""));
+      setUploadItems(
+        (Array.isArray(draft.images) ? draft.images : [])
+          .filter((src) => typeof src === "string" && src)
+          .slice(0, 10)
+          .map((src, index) => ({ id: `home-draft-${index}`, src }))
+      );
+      window.localStorage.removeItem(homeDraftKey);
+    } catch {
+      window.localStorage.removeItem(homeDraftKey);
+    }
   }, [token]);
 
   useEffect(() => {

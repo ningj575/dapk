@@ -6,11 +6,47 @@ import {
   ArrowRight,
   Camera,
   Eraser,
+  ImagePlus,
   LayoutGrid,
+  Loader2,
+  SlidersHorizontal,
+  Sparkles,
   WandSparkles,
+  X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
+type HeroToolKey = "image-editor" | "studio-genesis" | "ecom-studio" | "video-studio";
+
+const HOME_DRAFT_KEY = "dake_home_generation_draft";
+
+const heroTools: Array<{ key: HeroToolKey; label: string; href: string; placeholder: string }> = [
+  {
+    key: "image-editor",
+    label: "图像创作",
+    href: "/image-editor",
+    placeholder: "一句话描述你想生成的画面，例如：生成一张高级感陶瓷茶具海报，暖光、东方美学、适合小红书投放"
+  },
+  {
+    key: "studio-genesis",
+    label: "电商主图",
+    href: "/studio-genesis",
+    placeholder: "描述产品名称、核心卖点和主图风格，例如：白色陶瓷杯，突出釉面质感，轻奢电商主图"
+  },
+  {
+    key: "ecom-studio",
+    label: "电商详情图",
+    href: "/ecom-studio",
+    placeholder: "描述产品卖点、人群、场景和参数，例如：陶瓷餐具套装，耐热易清洁，适合家庭聚餐"
+  },
+  {
+    key: "video-studio",
+    label: "产品视频",
+    href: "/video-studio",
+    placeholder: "描述你想生成的视频内容，例如：陶瓷杯在晨光中旋转展示，镜头缓慢推进，质感高级"
+  }
+];
 
 const featureCards = [
   {
@@ -142,6 +178,11 @@ export default function Home() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [redirectTo, setRedirectTo] = useState("/watermark-remover");
   const [showcaseImages, setShowcaseImages] = useState<Record<string, HomeShowcaseImage> | null>(null);
+  const [heroTool, setHeroTool] = useState<HeroToolKey>("image-editor");
+  const [heroPrompt, setHeroPrompt] = useState("");
+  const [heroImages, setHeroImages] = useState<string[]>([]);
+  const [heroUploading, setHeroUploading] = useState(false);
+  const heroInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
   const token = useAuthToken();
   const ready = Boolean(useClientReady());
@@ -184,6 +225,52 @@ export default function Home() {
     };
   }, []);
 
+  const activeHeroTool = heroTools.find((item) => item.key === heroTool) || heroTools[0];
+
+  function readImageFile(file: File) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("图片读取失败"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function onHeroFiles(files?: FileList | null) {
+    if (!files || files.length === 0) return;
+    const selected = Array.from(files)
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, Math.max(0, 8 - heroImages.length));
+    if (selected.length === 0) return;
+    setHeroUploading(true);
+    try {
+      const images = await Promise.all(selected.map(readImageFile));
+      setHeroImages((current) => [...current, ...images].slice(0, 8));
+    } finally {
+      setHeroUploading(false);
+      if (heroInputRef.current) heroInputRef.current.value = "";
+    }
+  }
+
+  function startHeroGenerate() {
+    const target = activeHeroTool.href;
+    window.localStorage.setItem(
+      HOME_DRAFT_KEY,
+      JSON.stringify({
+        target,
+        prompt: heroPrompt.trim(),
+        images: heroImages,
+        createdAt: Date.now()
+      })
+    );
+    if (token) {
+      router.push(target);
+      return;
+    }
+    setRedirectTo(target);
+    setLoginOpen(true);
+  }
+
   const renderedShowcases = showcases.map((showcase) => {
     const remote = showcaseImages?.[showcase.showcaseKey];
     return {
@@ -215,6 +302,81 @@ export default function Home() {
       </header>
 
       <main>
+        <section className="relative overflow-hidden px-5 pb-8 pt-12 sm:px-8 sm:pb-12 sm:pt-16">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(219,220,255,0.45),rgba(255,255,255,0.72)_48%,rgba(229,247,215,0.42))]" />
+          <div className="relative mx-auto flex max-w-[1120px] flex-col items-center">
+            <h1 className="max-w-[1060px] text-center font-display text-[clamp(2.35rem,5.1vw,4.7rem)] font-extrabold leading-[1.1] tracking-tight text-[#080b12]">
+              无需复杂操作，输入一句话，达客AI 一键产出专业电商套图
+            </h1>
+            <p className="mt-6 text-center text-base font-medium tracking-[0.03em] text-[#737987] sm:text-xl">以极致 AI 创意，助推商业价值增长</p>
+
+            <div className="mt-9 w-full max-w-[1000px] rounded-[32px] bg-white/84 p-5 shadow-[0_24px_80px_-48px_rgba(16,24,39,0.52)] ring-1 ring-white/80 backdrop-blur-xl sm:p-8">
+              <div className="flex flex-wrap items-center gap-8 px-1 sm:gap-12">
+                {heroTools.map((item) => (
+                  <button
+                    key={item.key}
+                    className={`relative pb-3 text-base font-extrabold transition ${heroTool === item.key ? "text-[#101827]" : "text-[#8b909b] hover:text-[#101827]"}`}
+                    type="button"
+                    onClick={() => setHeroTool(item.key)}
+                  >
+                    {item.label}
+                    {heroTool === item.key && <span className="absolute inset-x-0 bottom-0 h-1 rounded-full bg-[#101827]" />}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                className="mt-5 min-h-[150px] w-full resize-none rounded-[24px] border-0 bg-[#f4f3f2] px-5 py-5 text-base font-normal leading-8 text-[#0d0d0d] outline-none placeholder:text-[#9aa0aa] sm:min-h-[168px] sm:text-lg"
+                value={heroPrompt}
+                placeholder={activeHeroTool.placeholder}
+                onChange={(event) => setHeroPrompt(event.target.value)}
+              />
+
+              <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+                  <input ref={heroInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => void onHeroFiles(event.target.files)} />
+                  {heroImages.map((src, index) => (
+                    <div key={`${src.slice(0, 32)}-${index}`} className="group relative h-12 w-12 overflow-hidden rounded-[14px] border border-[#e3ded5] bg-[#f4f3f2]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt={`上传参考图 ${index + 1}`} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        className="absolute inset-0 hidden items-center justify-center bg-[#101827]/58 text-white group-hover:flex"
+                        onClick={() => setHeroImages((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                        aria-label="移除参考图"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] border border-[#ece7de] bg-white text-[#101827] shadow-[0_10px_28px_-20px_rgba(16,24,39,0.55)] transition hover:bg-[#f7f5f1]"
+                    onClick={() => heroInputRef.current?.click()}
+                    disabled={heroUploading || heroImages.length >= 8}
+                    aria-label="上传图片"
+                  >
+                    {heroUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                  </button>
+                  <div className="inline-flex min-h-12 max-w-full items-center gap-2 rounded-[14px] border border-[#ebe6dd] bg-white px-4 text-sm font-semibold text-[#313846] shadow-[0_10px_28px_-22px_rgba(16,24,39,0.4)]">
+                    <SlidersHorizontal className="h-4 w-4 shrink-0" />
+                    <span className="truncate">电商平台 · 目标市场 · 文案语种 · 视觉风格</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-[16px] bg-[#101827] px-7 text-base font-extrabold text-white shadow-[0_18px_40px_-22px_rgba(16,24,39,0.75)] transition hover:-translate-y-px hover:bg-black"
+                  onClick={startHeroGenerate}
+                >
+                  <Sparkles className="h-5 w-5" />
+                  立即生成
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="relative flex min-h-[calc(100vh-64px)] items-center overflow-hidden pb-16 pt-20 sm:pb-24 sm:pt-28">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_28%_18%,rgba(251,191,146,0.14),transparent),radial-gradient(ellipse_50%_45%_at_72%_28%,rgba(167,215,198,0.11),transparent),radial-gradient(ellipse_45%_40%_at_50%_82%,rgba(196,181,219,0.09),transparent)]" />
           <div className="relative mx-auto w-full max-w-[1440px] px-5 sm:px-8">
