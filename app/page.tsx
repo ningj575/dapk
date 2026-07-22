@@ -254,22 +254,22 @@ export default function Home() {
       setAnimatedPlaceholder(current.slice(0, charIndex));
       if (!deleting && charIndex < current.length) {
         charIndex += 1;
-        timer = window.setTimeout(tick, 38);
+        timer = window.setTimeout(tick, 72);
         return;
       }
       if (!deleting && charIndex >= current.length) {
         deleting = true;
-        timer = window.setTimeout(tick, 1250);
+        timer = window.setTimeout(tick, 1500);
         return;
       }
       if (deleting && charIndex > 0) {
         charIndex -= 1;
-        timer = window.setTimeout(tick, 18);
+        timer = window.setTimeout(tick, 44);
         return;
       }
       deleting = false;
       sampleIndex += 1;
-      timer = window.setTimeout(tick, 280);
+      timer = window.setTimeout(tick, 420);
     };
 
     setAnimatedPlaceholder("");
@@ -375,12 +375,19 @@ export default function Home() {
                 ))}
               </div>
 
-              <textarea
-                className="mt-5 min-h-[150px] w-full resize-none rounded-[24px] border-0 bg-[#f4f3f2] px-5 py-5 text-base font-normal leading-8 text-[#0d0d0d] outline-none placeholder:text-[18px] placeholder:text-[#9aa0aa] sm:min-h-[168px] sm:text-lg"
-                value={heroPrompt}
-                placeholder={animatedPlaceholder || activeHeroTool.placeholders[0] || ""}
-                onChange={(event) => setHeroPrompt(event.target.value)}
-              />
+              <div className="relative mt-5">
+                <textarea
+                  className="min-h-[150px] w-full resize-none rounded-[24px] border-0 bg-[#f4f3f2] px-5 py-5 text-base font-normal leading-8 text-[#0d0d0d] outline-none sm:min-h-[168px] sm:text-lg"
+                  value={heroPrompt}
+                  onChange={(event) => setHeroPrompt(event.target.value)}
+                />
+                {!heroPrompt && (
+                  <div className="pointer-events-none absolute left-5 top-5 pr-5 text-[18px] font-normal leading-8 text-[#9aa0aa]">
+                    <span>{animatedPlaceholder}</span>
+                    <span className="dake-type-cursor" />
+                  </div>
+                )}
+              </div>
 
               <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
@@ -502,6 +509,27 @@ export default function Home() {
           }
           100% {
             background-position: 0% 50%;
+          }
+        }
+
+        .dake-type-cursor {
+          display: inline-block;
+          width: 1px;
+          height: 1.15em;
+          margin-left: 3px;
+          vertical-align: -0.18em;
+          background: #7c3aed;
+          animation: dakeTypeCursorBlink 0.9s steps(2, start) infinite;
+        }
+
+        @keyframes dakeTypeCursorBlink {
+          0%,
+          45% {
+            opacity: 1;
+          }
+          46%,
+          100% {
+            opacity: 0;
           }
         }
       `}</style>
