@@ -19,30 +19,46 @@ type HeroToolKey = "image-editor" | "studio-genesis" | "ecom-studio" | "video-st
 
 const HOME_DRAFT_KEY = "dake_home_generation_draft";
 
-const heroTools: Array<{ key: HeroToolKey; label: string; href: string; placeholder: string }> = [
+const heroTools: Array<{ key: HeroToolKey; label: string; href: string; placeholders: string[] }> = [
   {
     key: "image-editor",
     label: "图像创作",
     href: "/image-editor",
-    placeholder: "输入创意描述，直接生成商品海报或场景图；例如：哑光陶瓷水杯摆放在原木窗台，自然光漫射，简约 ins 风产品摄影；支持上传参考图，并设置目标尺寸后一键生成"
+    placeholders: [
+      "输入创意描述，直接生成商品海报或场景图",
+      "例如：哑光陶瓷水杯摆放在原木窗台，自然光漫射，简约 ins 风产品摄影",
+      "支持上传参考图，并设置目标尺寸后一键生成"
+    ]
   },
   {
     key: "studio-genesis",
     label: "电商主图",
     href: "/studio-genesis",
-    placeholder: "上传商品图，自动分析并生成整套电商主图；例如：银框偏光太阳镜，突出夏日出行、高级质感与防晒属性；支持同一商品多角度展示，AI 会智能规划主图、场景图与卖点图"
+    placeholders: [
+      "上传商品图，自动分析并生成整套电商主图",
+      "例如：银框偏光太阳镜，突出夏日出行、高级质感与防晒属性",
+      "支持同一商品多角度展示，AI 会智能规划主图、场景图与卖点图"
+    ]
   },
   {
     key: "ecom-studio",
     label: "电商详情图",
     href: "/ecom-studio",
-    placeholder: "上传商品图，自动分析并生成整套电商详情图；输入补充诉求，例如：浅棕复古双肩包，突出通勤、旅行与日常搭配场景；支持同一商品多角度展示，AI 会智能规划详情图、场景图与卖点图"
+    placeholders: [
+      "上传商品图，自动分析并生成整套电商详情图",
+      "输入补充诉求，例如：浅棕复古双肩包，突出通勤、旅行与日常搭配场景",
+      "支持同一商品多角度展示，AI 会智能规划详情图、场景图与卖点图"
+    ]
   },
   {
     key: "video-studio",
     label: "产品视频",
     href: "/video-studio",
-    placeholder: "上传一张产品图，AI 导演自动输出产品视频分镜；例如：聚焦手表金属表盘光泽，打造高级轻奢的数码穿搭氛围感画面；适合产品宣传短视频、详情页视频和投放素材方案"
+    placeholders: [
+      "上传一张产品图，AI 导演自动输出产品视频分镜",
+      "例如：聚焦手表金属表盘光泽，打造高级轻奢的数码穿搭氛围感画面",
+      "适合产品宣传短视频、详情页视频和投放素材方案"
+    ]
   }
 ];
 
@@ -227,12 +243,14 @@ export default function Home() {
   const activeHeroTool = heroTools.find((item) => item.key === heroTool) || heroTools[0];
 
   useEffect(() => {
-    const current = activeHeroTool.placeholder;
+    const samples = activeHeroTool.placeholders.length ? activeHeroTool.placeholders : [""];
+    let sampleIndex = 0;
     let charIndex = 0;
     let deleting = false;
     let timer = 0;
 
     const tick = () => {
+      const current = samples[sampleIndex % samples.length];
       setAnimatedPlaceholder(current.slice(0, charIndex));
       if (!deleting && charIndex < current.length) {
         charIndex += 1;
@@ -250,12 +268,14 @@ export default function Home() {
         return;
       }
       deleting = false;
+      sampleIndex += 1;
       timer = window.setTimeout(tick, 280);
     };
 
+    setAnimatedPlaceholder("");
     tick();
     return () => window.clearTimeout(timer);
-  }, [activeHeroTool.placeholder]);
+  }, [heroTool]);
 
   function readImageFile(file: File) {
     return new Promise<string>((resolve, reject) => {
@@ -356,9 +376,9 @@ export default function Home() {
               </div>
 
               <textarea
-                className="mt-5 min-h-[150px] w-full resize-none rounded-[24px] border-0 bg-[#f4f3f2] px-5 py-5 text-base font-normal leading-8 text-[#0d0d0d] outline-none placeholder:text-[#9aa0aa] sm:min-h-[168px] sm:text-lg"
+                className="mt-5 min-h-[150px] w-full resize-none rounded-[24px] border-0 bg-[#f4f3f2] px-5 py-5 text-base font-normal leading-8 text-[#0d0d0d] outline-none placeholder:text-[18px] placeholder:text-[#9aa0aa] sm:min-h-[168px] sm:text-lg"
                 value={heroPrompt}
-                placeholder={animatedPlaceholder || activeHeroTool.placeholder}
+                placeholder={animatedPlaceholder || activeHeroTool.placeholders[0] || ""}
                 onChange={(event) => setHeroPrompt(event.target.value)}
               />
 
