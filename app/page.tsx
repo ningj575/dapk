@@ -6,7 +6,6 @@ import {
   ArrowRight,
   Camera,
   Eraser,
-  ImagePlus,
   LayoutGrid,
   Loader2,
   SlidersHorizontal,
@@ -46,6 +45,13 @@ const heroTools: Array<{ key: HeroToolKey; label: string; href: string; placehol
     href: "/video-studio",
     placeholder: "描述你想生成的视频内容，例如：陶瓷杯在晨光中旋转展示，镜头缓慢推进，质感高级"
   }
+];
+
+const heroPlaceholderSamples = [
+  "上传商品图，生成高级感电商主图，白底、柔光、突出材质和核心卖点",
+  "帮我做一套陶瓷茶具详情页，包含卖点、使用场景、参数说明和品质背书",
+  "生成一张新品活动海报，现代简约风，突出限时优惠和立即购买按钮",
+  "把这张产品图做成短视频，镜头缓慢推进，光影高级，适合电商投放"
 ];
 
 const featureCards = [
@@ -180,6 +186,7 @@ export default function Home() {
   const [showcaseImages, setShowcaseImages] = useState<Record<string, HomeShowcaseImage> | null>(null);
   const [heroTool, setHeroTool] = useState<HeroToolKey>("image-editor");
   const [heroPrompt, setHeroPrompt] = useState("");
+  const [animatedPlaceholder, setAnimatedPlaceholder] = useState("");
   const [heroImages, setHeroImages] = useState<string[]>([]);
   const [heroUploading, setHeroUploading] = useState(false);
   const heroInputRef = useRef<HTMLInputElement | null>(null);
@@ -223,6 +230,39 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    let sampleIndex = 0;
+    let charIndex = 0;
+    let deleting = false;
+    let timer = 0;
+
+    const tick = () => {
+      const current = heroPlaceholderSamples[sampleIndex % heroPlaceholderSamples.length];
+      setAnimatedPlaceholder(current.slice(0, charIndex));
+      if (!deleting && charIndex < current.length) {
+        charIndex += 1;
+        timer = window.setTimeout(tick, 38);
+        return;
+      }
+      if (!deleting && charIndex >= current.length) {
+        deleting = true;
+        timer = window.setTimeout(tick, 1250);
+        return;
+      }
+      if (deleting && charIndex > 0) {
+        charIndex -= 1;
+        timer = window.setTimeout(tick, 18);
+        return;
+      }
+      deleting = false;
+      sampleIndex += 1;
+      timer = window.setTimeout(tick, 280);
+    };
+
+    tick();
+    return () => window.clearTimeout(timer);
   }, []);
 
   const activeHeroTool = heroTools.find((item) => item.key === heroTool) || heroTools[0];
@@ -305,8 +345,8 @@ export default function Home() {
         <section className="relative overflow-hidden px-5 pb-8 pt-12 sm:px-8 sm:pb-12 sm:pt-16">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(219,220,255,0.45),rgba(255,255,255,0.72)_48%,rgba(229,247,215,0.42))]" />
           <div className="relative mx-auto flex max-w-[1120px] flex-col items-center">
-            <h1 className="max-w-[1060px] text-center font-display text-[clamp(2.35rem,5.1vw,4.7rem)] font-extrabold leading-[1.1] tracking-tight text-[#080b12]">
-              无需复杂操作，输入一句话，达客AI 一键产出专业电商套图
+            <h1 className="max-w-[1060px] text-center font-display text-[42px] font-extrabold leading-[1.12] tracking-tight text-[#080b12] sm:text-[52px]">
+              <span className="dake-gradient-text">达客 AI</span> 一句话，完成专业电商套图
             </h1>
             <p className="mt-6 text-center text-base font-medium tracking-[0.03em] text-[#737987] sm:text-xl">以极致 AI 创意，助推商业价值增长</p>
 
@@ -328,7 +368,7 @@ export default function Home() {
               <textarea
                 className="mt-5 min-h-[150px] w-full resize-none rounded-[24px] border-0 bg-[#f4f3f2] px-5 py-5 text-base font-normal leading-8 text-[#0d0d0d] outline-none placeholder:text-[#9aa0aa] sm:min-h-[168px] sm:text-lg"
                 value={heroPrompt}
-                placeholder={activeHeroTool.placeholder}
+                placeholder={animatedPlaceholder || activeHeroTool.placeholder}
                 onChange={(event) => setHeroPrompt(event.target.value)}
               />
 
@@ -356,7 +396,7 @@ export default function Home() {
                     disabled={heroUploading || heroImages.length >= 8}
                     aria-label="上传图片"
                   >
-                    {heroUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                    {heroUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="text-[26px] font-light leading-none">+</span>}
                   </button>
                   <div className="inline-flex min-h-12 max-w-full items-center gap-2 rounded-[14px] border border-[#ebe6dd] bg-white px-4 text-sm font-semibold text-[#313846] shadow-[0_10px_28px_-22px_rgba(16,24,39,0.4)]">
                     <SlidersHorizontal className="h-4 w-4 shrink-0" />
@@ -377,7 +417,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative flex min-h-[calc(100vh-64px)] items-center overflow-hidden pb-16 pt-20 sm:pb-24 sm:pt-28">
+        <section className="hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_28%_18%,rgba(251,191,146,0.14),transparent),radial-gradient(ellipse_50%_45%_at_72%_28%,rgba(167,215,198,0.11),transparent),radial-gradient(ellipse_45%_40%_at_50%_82%,rgba(196,181,219,0.09),transparent)]" />
           <div className="relative mx-auto w-full max-w-[1440px] px-5 sm:px-8">
             <div className="flex flex-col items-center text-center">
@@ -437,6 +477,28 @@ export default function Home() {
           © 2026 达客 AI. All rights reserved.
         </div>
       </footer>
+      <style jsx global>{`
+        .dake-gradient-text {
+          background: linear-gradient(95deg, #ff3f8f 0%, #8b5cf6 38%, #14b8a6 72%, #ff8a3d 100%);
+          background-size: 240% 240%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: dakeGradientFlow 5.2s ease-in-out infinite;
+        }
+
+        @keyframes dakeGradientFlow {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+      `}</style>
     </div>
   );
 }
