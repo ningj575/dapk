@@ -8,7 +8,6 @@ import {
   Eraser,
   LayoutGrid,
   Loader2,
-  SlidersHorizontal,
   Sparkles,
   WandSparkles,
   X,
@@ -25,33 +24,26 @@ const heroTools: Array<{ key: HeroToolKey; label: string; href: string; placehol
     key: "image-editor",
     label: "图像创作",
     href: "/image-editor",
-    placeholder: "一句话描述你想生成的画面，例如：生成一张高级感陶瓷茶具海报，暖光、东方美学、适合小红书投放"
+    placeholder: "输入创意描述，直接生成商品海报或场景图；例如：哑光陶瓷水杯摆放在原木窗台，自然光漫射，简约 ins 风产品摄影；支持上传参考图，并设置目标尺寸后一键生成"
   },
   {
     key: "studio-genesis",
     label: "电商主图",
     href: "/studio-genesis",
-    placeholder: "描述产品名称、核心卖点和主图风格，例如：白色陶瓷杯，突出釉面质感，轻奢电商主图"
+    placeholder: "上传商品图，自动分析并生成整套电商主图；例如：银框偏光太阳镜，突出夏日出行、高级质感与防晒属性；支持同一商品多角度展示，AI 会智能规划主图、场景图与卖点图"
   },
   {
     key: "ecom-studio",
     label: "电商详情图",
     href: "/ecom-studio",
-    placeholder: "描述产品卖点、人群、场景和参数，例如：陶瓷餐具套装，耐热易清洁，适合家庭聚餐"
+    placeholder: "上传商品图，自动分析并生成整套电商详情图；输入补充诉求，例如：浅棕复古双肩包，突出通勤、旅行与日常搭配场景；支持同一商品多角度展示，AI 会智能规划详情图、场景图与卖点图"
   },
   {
     key: "video-studio",
     label: "产品视频",
     href: "/video-studio",
-    placeholder: "描述你想生成的视频内容，例如：陶瓷杯在晨光中旋转展示，镜头缓慢推进，质感高级"
+    placeholder: "上传一张产品图，AI 导演自动输出产品视频分镜；例如：聚焦手表金属表盘光泽，打造高级轻奢的数码穿搭氛围感画面；适合产品宣传短视频、详情页视频和投放素材方案"
   }
-];
-
-const heroPlaceholderSamples = [
-  "上传商品图，生成高级感电商主图，白底、柔光、突出材质和核心卖点",
-  "帮我做一套陶瓷茶具详情页，包含卖点、使用场景、参数说明和品质背书",
-  "生成一张新品活动海报，现代简约风，突出限时优惠和立即购买按钮",
-  "把这张产品图做成短视频，镜头缓慢推进，光影高级，适合电商投放"
 ];
 
 const featureCards = [
@@ -232,14 +224,15 @@ export default function Home() {
     };
   }, []);
 
+  const activeHeroTool = heroTools.find((item) => item.key === heroTool) || heroTools[0];
+
   useEffect(() => {
-    let sampleIndex = 0;
+    const current = activeHeroTool.placeholder;
     let charIndex = 0;
     let deleting = false;
     let timer = 0;
 
     const tick = () => {
-      const current = heroPlaceholderSamples[sampleIndex % heroPlaceholderSamples.length];
       setAnimatedPlaceholder(current.slice(0, charIndex));
       if (!deleting && charIndex < current.length) {
         charIndex += 1;
@@ -257,15 +250,12 @@ export default function Home() {
         return;
       }
       deleting = false;
-      sampleIndex += 1;
       timer = window.setTimeout(tick, 280);
     };
 
     tick();
     return () => window.clearTimeout(timer);
-  }, []);
-
-  const activeHeroTool = heroTools.find((item) => item.key === heroTool) || heroTools[0];
+  }, [activeHeroTool.placeholder]);
 
   function readImageFile(file: File) {
     return new Promise<string>((resolve, reject) => {
@@ -280,12 +270,12 @@ export default function Home() {
     if (!files || files.length === 0) return;
     const selected = Array.from(files)
       .filter((file) => file.type.startsWith("image/"))
-      .slice(0, Math.max(0, 8 - heroImages.length));
+      .slice(0, Math.max(0, 6 - heroImages.length));
     if (selected.length === 0) return;
     setHeroUploading(true);
     try {
       const images = await Promise.all(selected.map(readImageFile));
-      setHeroImages((current) => [...current, ...images].slice(0, 8));
+      setHeroImages((current) => [...current, ...images].slice(0, 6));
     } finally {
       setHeroUploading(false);
       if (heroInputRef.current) heroInputRef.current.value = "";
@@ -355,12 +345,12 @@ export default function Home() {
                 {heroTools.map((item) => (
                   <button
                     key={item.key}
-                    className={`relative pb-3 text-base font-extrabold transition ${heroTool === item.key ? "text-[#101827]" : "text-[#8b909b] hover:text-[#101827]"}`}
+                    className={`relative pb-3 text-[18px] font-extrabold transition ${heroTool === item.key ? "text-[#101827]" : "text-[#8b909b] hover:text-[#101827]"}`}
                     type="button"
                     onClick={() => setHeroTool(item.key)}
                   >
                     {item.label}
-                    {heroTool === item.key && <span className="absolute inset-x-0 bottom-0 h-1 rounded-full bg-[#101827]" />}
+                    {heroTool === item.key && <span className="absolute inset-x-0 bottom-0 h-1 rounded-full bg-[#edd53a]" />}
                   </button>
                 ))}
               </div>
@@ -393,20 +383,16 @@ export default function Home() {
                     type="button"
                     className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] border border-[#ece7de] bg-white text-[#101827] shadow-[0_10px_28px_-20px_rgba(16,24,39,0.55)] transition hover:bg-[#f7f5f1]"
                     onClick={() => heroInputRef.current?.click()}
-                    disabled={heroUploading || heroImages.length >= 8}
+                    disabled={heroUploading || heroImages.length >= 6}
                     aria-label="上传图片"
                   >
                     {heroUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="text-[26px] font-light leading-none">+</span>}
                   </button>
-                  <div className="inline-flex min-h-12 max-w-full items-center gap-2 rounded-[14px] border border-[#ebe6dd] bg-white px-4 text-sm font-semibold text-[#313846] shadow-[0_10px_28px_-22px_rgba(16,24,39,0.4)]">
-                    <SlidersHorizontal className="h-4 w-4 shrink-0" />
-                    <span className="truncate">电商平台 · 目标市场 · 文案语种 · 视觉风格</span>
-                  </div>
                 </div>
 
                 <button
                   type="button"
-                  className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-[16px] bg-[#101827] px-7 text-base font-extrabold text-white shadow-[0_18px_40px_-22px_rgba(16,24,39,0.75)] transition hover:-translate-y-px hover:bg-black"
+                  className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-[16px] bg-[#7c3aed] px-7 text-base font-extrabold text-white shadow-[0_18px_40px_-22px_rgba(124,58,237,0.75)] transition hover:-translate-y-px hover:bg-[#6d28d9]"
                   onClick={startHeroGenerate}
                 >
                   <Sparkles className="h-5 w-5" />
@@ -417,18 +403,18 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="hidden">
+        <section className="relative flex items-center overflow-hidden pb-16 pt-8 sm:pb-24 sm:pt-10">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_28%_18%,rgba(251,191,146,0.14),transparent),radial-gradient(ellipse_50%_45%_at_72%_28%,rgba(167,215,198,0.11),transparent),radial-gradient(ellipse_45%_40%_at_50%_82%,rgba(196,181,219,0.09),transparent)]" />
           <div className="relative mx-auto w-full max-w-[1440px] px-5 sm:px-8">
             <div className="flex flex-col items-center text-center">
-              <h1 className="max-w-[1100px] font-display text-[clamp(3.25rem,7vw,5.5rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#101827]">
+              <h1 className="hidden max-w-[1100px] font-display text-[clamp(3.25rem,7vw,5.5rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#101827]">
                 一键上传 高级出圈
               </h1>
-              <p className="mt-7 max-w-[580px] text-base leading-8 text-[#69707f] sm:text-lg sm:leading-9">
+              <p className="hidden mt-7 max-w-[580px] text-base leading-8 text-[#69707f] sm:text-lg sm:leading-9">
                 GPT Image 2 + Nano Banana 2 双引擎驱动。深耕电商主图、详情页制作，上传即出稿，省去外包开销与漫长定稿周期。
               </p>
 
-              <div className="mt-20 grid w-full max-w-[1400px] grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid w-full max-w-[1400px] grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                 {featureCards.map((card) => {
                   const Icon = card.icon;
                   return (
