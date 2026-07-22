@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const rawUrl = searchParams.get("url") || "";
-  const filename = sanitizeFilename(searchParams.get("filename") || "dake-image.png");
+  const filename = sanitizeFilename(searchParams.get("filename") || "xinglu-image.png");
 
   if (!/^https?:\/\//i.test(rawUrl)) {
     return NextResponse.json({ message: "Invalid image url" }, { status: 400 });
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(rawUrl, {
       cache: "no-store",
       headers: {
-        "User-Agent": "DakeAI-ImageDownloader/1.0"
+        "User-Agent": "XingluAI-ImageDownloader/1.0"
       }
     });
 
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
 function sanitizeFilename(value: string) {
   const cleaned = value.replace(/[\\/:*?"<>|]+/g, "-").trim();
-  return cleaned || "dake-image.png";
+  return cleaned || "xinglu-image.png";
 }
 
 function encodeRFC5987(value: string) {

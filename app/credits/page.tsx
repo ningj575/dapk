@@ -46,7 +46,7 @@ function AppHeader() {
     <header className="sticky top-0 z-50 border-b border-[#e5ded2] bg-[#faf9f7]/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-5 sm:px-8">
         <Link className="flex items-baseline gap-2" href="/">
-          <span className="font-display text-xl font-extrabold tracking-tight">达客</span>
+          <span className="font-display text-xl font-extrabold tracking-tight">Xinglu</span>
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <nav className="hidden items-center gap-1 md:flex">

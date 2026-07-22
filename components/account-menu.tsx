@@ -30,7 +30,7 @@ export function AccountMenu() {
   }, [open, token]);
 
   const email = user?.email || "未登录账号";
-  const displayName = user?.nickname || email.split("@")[0] || "达客用户";
+  const displayName = user?.nickname || email.split("@")[0] || "Xinglu用户";
   const credits = typeof user?.credits === "number" ? user.credits : 0;
 
   function goTo(path: string) {

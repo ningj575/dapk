@@ -251,7 +251,7 @@ function AppHeader() {
     <header className="sticky top-0 z-50 border-b border-[#e5ded2] bg-[#faf9f7]/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-5 sm:px-8">
         <Link className="flex items-baseline gap-2" href="/">
-          <span className="font-display text-xl font-extrabold tracking-tight">达客</span>
+          <span className="font-display text-xl font-extrabold tracking-tight">Xinglu</span>
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
@@ -1127,7 +1127,7 @@ function ImagePreview({
           <button
             className="flex h-10 items-center justify-center gap-2 border-t border-[#eee7dd] text-xs font-extrabold text-[#101827] transition hover:bg-[#f6f5f3]"
             type="button"
-            onClick={() => void downloadImage(activeImage, `dake-universal-${messageId}-${activeIndex + 1}.png`)}
+            onClick={() => void downloadImage(activeImage, `xinglu-universal-${messageId}-${activeIndex + 1}.png`)}
           >
             <Download className="h-4 w-4" />
             下载图片
@@ -1177,7 +1177,7 @@ function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
         <button
           className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#101827] px-6 text-sm font-extrabold text-white transition hover:bg-[#2b3344]"
           type="button"
-          onClick={() => void downloadImage(src, "dake-image.png")}
+          onClick={() => void downloadImage(src, "xinglu-image.png")}
         >
           <Download className="h-4 w-4" />
           下载图片

@@ -668,7 +668,7 @@ function AppHeader({ activeMode, onModeChange }: { activeMode: StudioMode; onMod
     <header className="sticky top-0 z-50 border-b border-[#e5ded2] bg-[#faf9f7]/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-5 sm:px-8">
         <Link className="flex items-baseline gap-2" href="/">
-          <span className="font-display text-xl font-extrabold tracking-tight">达客</span>
+          <span className="font-display text-xl font-extrabold tracking-tight">Xinglu</span>
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
@@ -1136,7 +1136,7 @@ function ResultPanel({
       context.drawImage(image, 0, y, width, drawHeight);
       y += drawHeight;
     });
-    await downloadImage(canvas.toDataURL("image/png"), "dake-detail-stitched.png");
+    await downloadImage(canvas.toDataURL("image/png"), "xinglu-detail-stitched.png");
   }
 
   return (
@@ -1279,7 +1279,7 @@ function GenesisResult({ quantity, ratio, images, tasks, phase, retryingTaskId, 
               <div className="flex items-center justify-between border-b border-[#e7ecf0] px-5 py-4">
                 <p className="text-sm font-bold text-[#5f6674]">{previewIndex! + 1} / {displayImages.length}</p>
                 <div className="flex items-center gap-2">
-                  <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#101827] text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(activePreview, `dake-main-image-${previewIndex! + 1}.png`)} aria-label="下载图片">
+                  <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#101827] text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(activePreview, `xinglu-main-image-${previewIndex! + 1}.png`)} aria-label="下载图片">
                     <Download className="h-4 w-4" />
                   </button>
                   <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eef2f5] text-[#5f6674] hover:text-[#101827]" type="button" onClick={() => setPreviewIndex(null)} aria-label="关闭">

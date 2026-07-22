@@ -69,7 +69,7 @@ function AppHeader() {
     <header className="sticky top-0 z-50 border-b border-[#e5ded2] bg-[#faf9f7]/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-5 sm:px-8">
         <Link className="flex items-baseline gap-2" href="/">
-          <span className="font-display text-xl font-extrabold tracking-tight">达客</span>
+          <span className="font-display text-xl font-extrabold tracking-tight">Xinglu</span>
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
@@ -324,7 +324,7 @@ function GenerationRecordsContent() {
             <div className="flex items-center justify-between border-b border-[#e7ecf0] px-5 py-4">
               <h2 className="truncate text-base font-black text-[#101827]">图片预览</h2>
               <div className="flex items-center gap-2">
-                <button className="inline-flex h-9 items-center gap-2 rounded-full bg-[#101827] px-4 text-sm font-bold text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(previewSrc, `dake-generation-${preview.index + 1}.png`)}>
+                <button className="inline-flex h-9 items-center gap-2 rounded-full bg-[#101827] px-4 text-sm font-bold text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(previewSrc, `xinglu-generation-${preview.index + 1}.png`)}>
                   <Download className="h-4 w-4" />
                   下载
                 </button>

@@ -1,9 +1,9 @@
 const activeDownloads = new Set<string>();
 
-export async function downloadImage(src: string, filename = "dake-image.png") {
+export async function downloadImage(src: string, filename = "xinglu-image.png") {
   if (!src || typeof window === "undefined") return;
 
-  const safeName = filename || "dake-image.png";
+  const safeName = filename || "xinglu-image.png";
   const downloadKey = `${src}::${safeName}`;
   const userAgent = window.navigator.userAgent;
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
@@ -114,11 +114,11 @@ function triggerDownload(url: string, filename: string) {
 }
 
 function showImageSaveOverlay(src: string) {
-  let overlay = document.getElementById("dake-image-save-overlay");
+  let overlay = document.getElementById("xinglu-image-save-overlay");
   if (overlay) overlay.remove();
 
   overlay = document.createElement("div");
-  overlay.id = "dake-image-save-overlay";
+  overlay.id = "xinglu-image-save-overlay";
   overlay.style.position = "fixed";
   overlay.style.inset = "0";
   overlay.style.zIndex = "10000";

@@ -133,7 +133,7 @@ const showcases = [
       ["参考图辅助", "可结合参考图片控制产品元素、色彩与构图，减少反复沟通"]
     ],
     beforeLabel: "参考图",
-    afterLabel: "达客 设计稿",
+    afterLabel: "Xinglu 设计稿",
     beforeSrc: `${API_BASE_URL}/images/showcase/universal_before.jpg`,
     afterSrc: `${API_BASE_URL}/images/showcase/universal_after.jpg`,
     aspectRatio: "1078 / 719",
@@ -150,7 +150,7 @@ const showcases = [
       ["品牌视觉可控", "自由调整场景灯光、画面构图，保障商品辨识度与品牌风格统一"]
     ],
     beforeLabel: "原图",
-    afterLabel: "达客 效果",
+    afterLabel: "Xinglu 效果",
     beforeSrc: `${API_BASE_URL}/images/showcase/main_before.jpg`,
     afterSrc: `${API_BASE_URL}/images/showcase/main_after.jpg`,
     aspectRatio: "1078 / 719",
@@ -167,7 +167,7 @@ const showcases = [
       ["并行批量出图", "单次产品解析即可同步产出多张详情素材，大幅缩短新品上架与营销投放周期"]
     ],
     beforeLabel: "原图",
-    afterLabel: "达客 效果",
+    afterLabel: "Xinglu 效果",
     beforeSrc: `${API_BASE_URL}/images/showcase/detail_before.jpg`,
     afterSrc: `${API_BASE_URL}/images/showcase/detail_after.jpg`,
     aspectRatio: "1078 / 958",
@@ -337,7 +337,7 @@ export default function Home() {
       <header className="sticky top-0 z-50 w-full bg-[#faf9f7]/90 backdrop-blur-sm">
         <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between px-5 sm:px-8">
           <button className="flex items-center gap-2" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <span className="font-display text-xl font-extrabold tracking-tight text-[#101827]">达客</span>
+            <span className="font-display text-xl font-extrabold tracking-tight text-[#101827]">Xinglu</span>
             <span className="text-xs font-medium text-text-tertiary">AI</span>
           </button>
           <button
@@ -356,7 +356,7 @@ export default function Home() {
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(219,220,255,0.45),rgba(255,255,255,0.72)_48%,rgba(229,247,215,0.42))]" />
           <div className="relative mx-auto flex max-w-[1120px] flex-col items-center">
             <h1 className="max-w-[1060px] text-center font-display text-[42px] font-extrabold leading-[1.12] tracking-tight text-[#080b12] sm:text-[52px]">
-              <span className="dake-gradient-text">达客 AI</span> 一句话，完成专业电商套图
+              <span className="dake-gradient-text">Xinglu AI</span> 一句话，完成专业电商套图
             </h1>
             <p className="mt-6 text-center text-base font-medium tracking-[0.03em] text-[#737987] sm:text-xl">以极致 AI 创意，助推商业价值增长</p>
 
@@ -487,7 +487,7 @@ export default function Home() {
 
       <footer className="border-t border-[#e5ded2] bg-[#faf9f7] px-5 py-8 sm:px-8">
         <div className="mx-auto flex max-w-[1280px] items-center justify-center text-sm text-[#777d8a]">
-          © 2026 达客 AI. All rights reserved.
+          © 2026 Xinglu AI. All rights reserved.
         </div>
       </footer>
       <style jsx global>{`

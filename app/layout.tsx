@@ -3,9 +3,9 @@ import { SupportFloating } from "@/components/support-floating";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "达客 AI | 图片免费去除水印、电商主图、详情图生成与商品图片精修工具",
+  title: "Xinglu AI | 图片免费去除水印、电商主图、详情图生成与商品图片精修工具",
   description:
-    "达客 AI GPT Image 2 + Nano Banana 2 提供图片免费去除水印、电商主图生成、电商详情图生成、电商生图、AI商品图生成、商品图片精修与详情页素材生成能力，覆盖国内外主流电商平台。",
+    "Xinglu AI GPT Image 2 + Nano Banana 2 提供图片免费去除水印、电商主图生成、电商详情图生成、AI电商套图生成、视频生成，覆盖国内外主流电商平台。",
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico"
