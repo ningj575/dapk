@@ -493,6 +493,22 @@ function UniversalImageContent() {
       notifyAuthChanged();
 
       const images = (result.data.images || []).map(mediaUrl);
+      const failed = (result.data.tasks || []).filter((task) => task.status === "failed");
+      if (result.data.status === "failed" || (result.data.done && failed.length > 0 && images.length === 0)) {
+        setMessages((items) =>
+          items.map((message) =>
+            message.id === loadingMessageId
+              ? {
+                  ...message,
+                  images: [],
+                  status: "failed",
+                  elapsedSeconds: Math.max(1, Math.round((Date.now() - startedAt) / 1000))
+                }
+              : message
+          )
+        );
+        return;
+      }
       if (images.length > 0) {
         setMessages((items) =>
           items.map((message) =>
@@ -509,7 +525,6 @@ function UniversalImageContent() {
       }
 
       if (result.data.done) {
-        const failed = (result.data.tasks || []).filter((task) => task.status === "failed");
         if (images.length === 0) {
           throw new Error(failed[0]?.error_message || "生成失败");
         }
