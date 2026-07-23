@@ -3,6 +3,7 @@
 import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken } from "@/components/auth-state";
+import { ImageLightbox } from "@/components/image-lightbox";
 import { downloadImage } from "@/lib/download-image";
 import { AlertTriangle, Check, ChevronDown, Copy, CornerDownLeft, Download, Loader2, Plus, RefreshCw, Send, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
@@ -360,7 +361,7 @@ function UniversalImageContent() {
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState("");
   const [previewByMessage, setPreviewByMessage] = useState<Record<number, number>>({});
-  const [lightboxImage, setLightboxImage] = useState("");
+  const [lightboxPreview, setLightboxPreview] = useState<{ images: string[]; index: number; prefix: string } | null>(null);
   const [modelConfigs, setModelConfigs] = useState<ModelConfig[]>([]);
   const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<number>>(new Set());
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
@@ -789,7 +790,7 @@ function UniversalImageContent() {
                     message={message}
                     selectedIndex={previewByMessage[message.id] || 0}
                     onSelect={(index) => setPreviewByMessage((current) => ({ ...current, [message.id]: index }))}
-                    onPreview={setLightboxImage}
+                    onPreview={(index) => setLightboxPreview({ images: message.images || [], index, prefix: `xinglu-universal-${message.id}` })}
                     onRetry={(request) => void submitGeneration(request)}
                   />
                 )}
@@ -876,7 +877,7 @@ function UniversalImageContent() {
           </div>
         </div>
       </section>
-      {lightboxImage && <ImageLightbox src={lightboxImage} onClose={() => setLightboxImage("")} />}
+      {lightboxPreview && <ImageLightbox images={lightboxPreview.images} initialIndex={lightboxPreview.index} filenamePrefix={lightboxPreview.prefix} onClose={() => setLightboxPreview(null)} />}
       {pendingDelete && (
         <DeleteConversationDialog
           deleting={deletingConversation}
@@ -997,7 +998,7 @@ function AssistantMessageContent({
   message: Message;
   selectedIndex: number;
   onSelect: (index: number) => void;
-  onPreview: (src: string) => void;
+  onPreview: (index: number) => void;
   onRetry: (request: GenerationRequest) => void;
 }) {
   if (message.status === "loading") {
@@ -1109,7 +1110,7 @@ function ImagePreview({
   selectedIndex: number;
   canDownload: boolean;
   onSelect: (index: number) => void;
-  onOpen: (src: string) => void;
+  onOpen: (index: number) => void;
 }) {
   const activeIndex = Math.min(selectedIndex, images.length - 1);
   const activeImage = images[activeIndex] || images[0];
@@ -1119,7 +1120,7 @@ function ImagePreview({
   return (
     <div data-testid="image-preview" className={`grid gap-3 ${images.length > 1 ? "max-w-[680px] md:grid-cols-[minmax(0,560px)_64px]" : previewWidthClass}`}>
       <div className="overflow-hidden rounded-[14px] border border-[#ded8cd] bg-white shadow-sm">
-        <button type="button" className="block w-full" onClick={() => onOpen(activeImage)} aria-label="放大查看图片">
+        <button type="button" className="block w-full" onClick={() => onOpen(activeIndex)} aria-label="放大查看图片">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={activeImage} alt={`预览图 ${activeIndex + 1}`} className={`${imageAspectRatio ? "" : "max-h-[70vh]"} w-full bg-[#f6f5f3] object-contain`} style={imageAspectRatio ? { aspectRatio: imageAspectRatio } : undefined} />
         </button>
@@ -1154,35 +1155,6 @@ function ImagePreview({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#101827]/72 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative flex max-h-full w-full max-w-[920px] flex-col rounded-[22px] bg-white p-4 shadow-[0_28px_90px_-36px_rgba(16,24,39,0.9)]" onClick={(event) => event.stopPropagation()}>
-        <button
-          type="button"
-          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#f0efed] text-[#101827] transition hover:bg-[#e4e0d8]"
-          onClick={onClose}
-          aria-label="关闭预览"
-        >
-          <X className="h-4 w-4" />
-        </button>
-        <div className="mt-10 flex min-h-0 justify-center overflow-auto rounded-[16px] bg-[#f6f5f3]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="生成图片预览" className="max-h-[72vh] w-auto max-w-full object-contain" />
-        </div>
-        <button
-          className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#101827] px-6 text-sm font-extrabold text-white transition hover:bg-[#2b3344]"
-          type="button"
-          onClick={() => void downloadImage(src, "xinglu-image.png")}
-        >
-          <Download className="h-4 w-4" />
-          下载图片
-        </button>
-      </div>
     </div>
   );
 }

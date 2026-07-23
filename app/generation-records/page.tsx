@@ -2,9 +2,10 @@
 
 import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
+import { ImageLightbox } from "@/components/image-lightbox";
 import { useAuthToken } from "@/components/auth-state";
 import { downloadImage } from "@/lib/download-image";
-import { ChevronLeft, ChevronRight, Clock3, Download, ImageIcon, Search, Sparkles, Video, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3, ImageIcon, Search, Sparkles, Video } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -227,14 +228,6 @@ function GenerationRecordsContent() {
   }, [filter, query, visibleRecords]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const previewSrc = preview?.images[preview.index] || "";
-  const movePreview = (step: number) => {
-    setPreview((current) => {
-      if (!current || current.images.length === 0) return current;
-      return { ...current, index: (current.index + step + current.images.length) % current.images.length };
-    });
-  };
-
   return (
     <main className="min-h-screen bg-[#f4f8fb] text-[#101827]">
       <AppHeader />
@@ -318,38 +311,7 @@ function GenerationRecordsContent() {
         </section>
       </section>
 
-      {preview && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#07101f]/75 px-4 py-8 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="relative flex max-h-full w-full max-w-[980px] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#e7ecf0] px-5 py-4">
-              <h2 className="truncate text-base font-black text-[#101827]">图片预览</h2>
-              <div className="flex items-center gap-2">
-                <button className="inline-flex h-9 items-center gap-2 rounded-full bg-[#101827] px-4 text-sm font-bold text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(previewSrc, `xinglu-generation-${preview.index + 1}.png`)}>
-                  <Download className="h-4 w-4" />
-                  下载
-                </button>
-                <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eef2f5] text-[#5f6674] hover:text-[#101827]" type="button" onClick={() => setPreview(null)} aria-label="关闭">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div className="relative flex min-h-0 flex-1 items-center justify-center bg-[#f4f8fb] p-4">
-              {preview.images.length > 1 && (
-                <button className="absolute left-5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-[#101827] shadow-lg transition hover:bg-[#101827] hover:text-white" type="button" onClick={() => movePreview(-1)} aria-label="上一张">
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-              )}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="max-h-[76vh] w-auto max-w-full rounded-2xl object-contain shadow-sm" src={previewSrc} alt={preview.title} />
-              {preview.images.length > 1 && (
-                <button className="absolute right-5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-[#101827] shadow-lg transition hover:bg-[#101827] hover:text-white" type="button" onClick={() => movePreview(1)} aria-label="下一张">
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {preview && <ImageLightbox images={preview.images} initialIndex={preview.index} filenamePrefix="xinglu-generation" onClose={() => setPreview(null)} />}
     </main>
   );
 }

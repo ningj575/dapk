@@ -6,8 +6,6 @@ import {
   Camera,
   Check,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CircleDollarSign,
   Download,
   FileImage,
@@ -27,6 +25,7 @@ import {
 import Link from "next/link";
 import { AccountMenu } from "@/components/account-menu";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
+import { ImageLightbox } from "@/components/image-lightbox";
 import { downloadImage } from "@/lib/download-image";
 import type { DragEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -1102,6 +1101,8 @@ function ResultPanel({
     : images;
   const hasOutput = successfulImages.length > 0 || tasks.length > 0 || phase === "complete";
   const [detailPreviewOpen, setDetailPreviewOpen] = useState(false);
+  const [detailLightboxIndex, setDetailLightboxIndex] = useState<number | null>(null);
+  const detailDisplayImages = successfulImages.map((image) => mediaUrl(image));
   function downloadAllImages() {
     successfulImages.forEach((image, index) => {
       window.setTimeout(() => {
@@ -1165,7 +1166,10 @@ function ResultPanel({
         )}
 
         {mode === "genesis" && phase !== "idle" && <GenesisResult quantity={quantity} ratio={ratio} images={images} tasks={tasks} phase={phase} retryingTaskId={retryingTaskId} onRetryTask={onRetryTask} />}
-        {mode !== "genesis" && phase !== "idle" && <DetailResult quantity={quantity} ratio={ratio} images={images} tasks={tasks} phase={phase} retryingTaskId={retryingTaskId} onRetryTask={onRetryTask} onOpenPreview={() => setDetailPreviewOpen(true)} />}
+        {mode !== "genesis" && phase !== "idle" && <DetailResult quantity={quantity} ratio={ratio} images={images} tasks={tasks} phase={phase} retryingTaskId={retryingTaskId} onRetryTask={onRetryTask} onOpenPreview={setDetailLightboxIndex} />}
+        {detailLightboxIndex !== null && (
+          <ImageLightbox images={detailDisplayImages} initialIndex={detailLightboxIndex} filenamePrefix="xinglu-detail-image" onClose={() => setDetailLightboxIndex(null)} />
+        )}
         {detailPreviewOpen && (
           <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#07101f]/75 px-4 py-8 backdrop-blur-sm" role="dialog" aria-modal="true">
             <div className="flex max-h-full w-full max-w-[980px] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
@@ -1241,14 +1245,7 @@ function GenesisResult({ quantity, ratio, images, tasks, phase, retryingTaskId, 
     ? slots.map((task) => task?.image_url || "").filter(Boolean)
     : images;
   const displayImages = successfulImages.map((image) => mediaUrl(image));
-  const activePreview = previewIndex === null ? "" : displayImages[previewIndex] || "";
   const isGenerating = phase === "planning" || phase === "preview";
-  const movePreview = (step: number) => {
-    setPreviewIndex((current) => {
-      if (current === null || displayImages.length === 0) return current;
-      return (current + step + displayImages.length) % displayImages.length;
-    });
-  };
 
   if (slots.length > 0) {
     return (
@@ -1273,36 +1270,8 @@ function GenesisResult({ quantity, ratio, images, tasks, phase, retryingTaskId, 
             );
           })}
         </div>
-        {activePreview && (
-          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#07101f]/75 px-4 py-8 backdrop-blur-sm" role="dialog" aria-modal="true">
-            <div className="relative flex max-h-full w-full max-w-[980px] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-[#e7ecf0] px-5 py-4">
-                <p className="text-sm font-bold text-[#5f6674]">{previewIndex! + 1} / {displayImages.length}</p>
-                <div className="flex items-center gap-2">
-                  <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#101827] text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(activePreview, `xinglu-main-image-${previewIndex! + 1}.png`)} aria-label="下载图片">
-                    <Download className="h-4 w-4" />
-                  </button>
-                  <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eef2f5] text-[#5f6674] hover:text-[#101827]" type="button" onClick={() => setPreviewIndex(null)} aria-label="关闭">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="relative flex min-h-0 flex-1 items-center justify-center bg-[#f4f8fb] p-4">
-                {displayImages.length > 1 && (
-                  <button className="absolute left-5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-[#101827] shadow-lg transition hover:bg-[#101827] hover:text-white" type="button" onClick={() => movePreview(-1)} aria-label="上一张">
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                )}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="max-h-[76vh] w-auto max-w-full rounded-2xl object-contain shadow-sm" src={activePreview} alt="主图预览" />
-                {displayImages.length > 1 && (
-                  <button className="absolute right-5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-[#101827] shadow-lg transition hover:bg-[#101827] hover:text-white" type="button" onClick={() => movePreview(1)} aria-label="下一张">
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+        {previewIndex !== null && (
+          <ImageLightbox images={displayImages} initialIndex={previewIndex} filenamePrefix="xinglu-main-image" onClose={() => setPreviewIndex(null)} />
         )}
       </>
     );
@@ -1316,7 +1285,7 @@ function GenesisResult({ quantity, ratio, images, tasks, phase, retryingTaskId, 
   );
 }
 
-function DetailResult({ quantity, ratio, images, tasks, phase, retryingTaskId, onRetryTask, onOpenPreview }: { quantity: string; ratio: string; images: string[]; tasks: ImageTask[]; phase: string; retryingTaskId: number | null; onRetryTask: (taskId: number) => void; onOpenPreview: () => void }) {
+function DetailResult({ quantity, ratio, images, tasks, phase, retryingTaskId, onRetryTask, onOpenPreview }: { quantity: string; ratio: string; images: string[]; tasks: ImageTask[]; phase: string; retryingTaskId: number | null; onRetryTask: (taskId: number) => void; onOpenPreview: (index: number) => void }) {
   const count = Number.parseInt(quantity, 10) || 1;
   const isGenerating = phase === "planning" || phase === "preview";
   const slots = tasks.length > 0 ? orderedTaskSlots(tasks, quantity) : [];
@@ -1335,7 +1304,7 @@ function DetailResult({ quantity, ratio, images, tasks, phase, retryingTaskId, o
             active={isGenerating}
             retrying={retryingTaskId === task?.id}
             onRetry={() => task && onRetryTask(task.id)}
-            onPreview={task?.image_url ? onOpenPreview : undefined}
+            onPreview={task?.image_url ? () => onOpenPreview(index) : undefined}
           />
         ))}
       </div>

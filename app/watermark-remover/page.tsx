@@ -3,6 +3,7 @@
 import { AccountMenu } from "@/components/account-menu";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
+import { ImageLightbox } from "@/components/image-lightbox";
 import { downloadImage } from "@/lib/download-image";
 import { AlertCircle, Download, ImagePlus, Loader2, Sparkles, Upload, X } from "lucide-react";
 import Link from "next/link";
@@ -353,27 +354,7 @@ function WatermarkRemoverContent() {
         </section>
       </section>
 
-      {previewOpen && resultImage && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#07101f]/75 px-4 py-8 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="relative flex max-h-full w-full max-w-[980px] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#e7ecf0] px-5 py-4">
-              <p className="text-sm font-bold text-[#5f6674]">去水印结果预览</p>
-              <div className="flex items-center gap-2">
-                <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#101827] text-white transition hover:bg-black" type="button" onClick={() => void downloadImage(resultImage, "xinglu-watermark-removed.png")} aria-label="下载图片">
-                  <Download className="h-4 w-4" />
-                </button>
-                <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eef2f5] text-[#5f6674] hover:text-[#101827]" type="button" onClick={() => setPreviewOpen(false)} aria-label="关闭">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div className="flex min-h-0 flex-1 items-center justify-center bg-[#f4f8fb] p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="max-h-[76vh] w-auto max-w-full rounded-2xl object-contain shadow-sm" src={resultImage} alt="去水印结果预览" />
-            </div>
-          </div>
-        </div>
-      )}
+      {previewOpen && resultImage && <ImageLightbox images={[resultImage]} filenamePrefix="xinglu-watermark-removed" onClose={() => setPreviewOpen(false)} />}
     </main>
   );
 }

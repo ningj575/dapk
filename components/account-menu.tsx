@@ -53,7 +53,7 @@ export function AccountMenu() {
         onClick={() => setOpen((value) => !value)}
       >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#101827] text-xs font-extrabold text-white">
-          AI
+          X
         </span>
         <span className="hidden max-w-[130px] truncate sm:inline">{displayName}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 transition ${open ? "rotate-180" : ""}`} />
@@ -64,7 +64,7 @@ export function AccountMenu() {
           <div className="border-b border-[#eee7dd] bg-[#fbfaf7] p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#101827] text-sm font-extrabold text-white">
-                AI
+                X
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-extrabold text-[#101827]">{displayName}</p>
