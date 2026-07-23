@@ -206,6 +206,12 @@ function resolveMediaUrl(src?: string) {
   return `${API_BASE_URL}${src.startsWith("/") ? src : `/${src}`}`;
 }
 
+function isVideoMedia(src?: string) {
+  if (!src) return false;
+  const cleanSrc = src.split("?")[0].toLowerCase();
+  return /\.(mp4|webm|mov|m4v)$/i.test(cleanSrc);
+}
+
 export default function Home() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [redirectTo, setRedirectTo] = useState("/watermark-remover");
@@ -604,6 +610,9 @@ type ShowcaseProps = (typeof showcases)[number] & {
 };
 
 function Showcase({ index, title, subtitle, points, beforeLabel, afterLabel, beforeSrc, afterSrc, aspectRatio, href, onOpen }: ShowcaseProps) {
+  const beforeIsVideo = isVideoMedia(beforeSrc);
+  const afterIsVideo = isVideoMedia(afterSrc);
+
   return (
     <section className="relative overflow-hidden bg-[#faf9f7] px-5 py-14 sm:px-8 sm:py-[4.5rem]">
       <div className="mx-auto max-w-[1080px]">
@@ -633,16 +642,24 @@ function Showcase({ index, title, subtitle, points, beforeLabel, afterLabel, bef
             <div className="relative grid grid-cols-2 overflow-hidden bg-[#f6f5f3]" style={{ aspectRatio }}>
               <div className="relative overflow-hidden border-r border-[#e7e1d7] bg-white">
                 {beforeSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img alt={`${title} ${beforeLabel}`} className="h-full w-full object-cover" loading="eager" src={beforeSrc} />
+                  beforeIsVideo ? (
+                    <video className="h-full w-full object-cover" src={beforeSrc} autoPlay muted loop playsInline preload="metadata" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img alt={`${title} ${beforeLabel}`} className="h-full w-full object-cover" loading="eager" src={beforeSrc} />
+                  )
                 ) : (
                   <div className="h-full w-full bg-[#f2f0eb]" aria-label={`${title} ${beforeLabel}加载中`} />
                 )}
               </div>
               <div className="relative overflow-hidden bg-white">
                 {afterSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img alt={`${title} ${afterLabel}`} className="h-full w-full object-cover" loading="eager" src={afterSrc} />
+                  afterIsVideo ? (
+                    <video className="h-full w-full object-cover" src={afterSrc} autoPlay muted loop playsInline preload="metadata" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img alt={`${title} ${afterLabel}`} className="h-full w-full object-cover" loading="eager" src={afterSrc} />
+                  )
                 ) : (
                   <div className="h-full w-full bg-[#f2f0eb]" aria-label={`${title} ${afterLabel}加载中`} />
                 )}
