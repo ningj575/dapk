@@ -208,7 +208,7 @@ function resolveMediaUrl(src?: string) {
 
 function isVideoMedia(src?: string) {
   if (!src) return false;
-  const cleanSrc = src.split("?")[0].toLowerCase();
+  const cleanSrc = src.split(/[?#]/)[0].toLowerCase();
   return /\.(mp4|webm|mov|m4v)$/i.test(cleanSrc);
 }
 
