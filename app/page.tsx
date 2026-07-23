@@ -172,11 +172,29 @@ const showcases = [
     afterSrc: `${API_BASE_URL}/images/showcase/detail_after.jpg`,
     aspectRatio: "1078 / 958",
     href: "/ecom-studio"
+  },
+  {
+    showcaseKey: "video_generation",
+    index: "05",
+    title: "视频生成",
+    subtitle: "上传产品图或参考素材，AI 自动规划镜头语言与运动节奏，快速生成适合商品展示、投放和详情页使用的产品视频。",
+    points: [
+      ["产品视频分镜", "根据商品主体、卖点和场景自动拆解镜头，减少人工策划成本"],
+      ["多模式创作", "支持一键生成、首尾帧和视频复刻等常用视频生产流程"],
+      ["适配营销投放", "围绕产品质感、场景氛围和卖点表达输出更适合转化的视频素材"]
+    ],
+    beforeLabel: "产品素材",
+    afterLabel: "视频效果",
+    beforeSrc: `${API_BASE_URL}/images/showcase/video_before.jpg`,
+    afterSrc: `${API_BASE_URL}/images/showcase/video_after.jpg`,
+    aspectRatio: "16 / 9",
+    href: "/video-studio"
   }
 ];
 
 type HomeShowcaseImage = {
   key: string;
+  title?: string;
   before_src?: string;
   after_src?: string;
   aspect_ratio?: string;
@@ -191,7 +209,7 @@ function resolveMediaUrl(src?: string) {
 export default function Home() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [redirectTo, setRedirectTo] = useState("/watermark-remover");
-  const [showcaseImages, setShowcaseImages] = useState<Record<string, HomeShowcaseImage> | null>(null);
+  const [showcaseImages, setShowcaseImages] = useState<HomeShowcaseImage[] | null>(null);
   const [heroTool, setHeroTool] = useState<HeroToolKey>("image-editor");
   const [heroPrompt, setHeroPrompt] = useState("");
   const [animatedPlaceholder, setAnimatedPlaceholder] = useState("");
@@ -226,14 +244,10 @@ export default function Home() {
       .then((payload) => {
         if (cancelled || !payload || payload.code !== 0) return;
         const rows = Array.isArray(payload.data?.showcases) ? payload.data.showcases : [];
-        const next = rows.reduce((acc: Record<string, HomeShowcaseImage>, row: HomeShowcaseImage) => {
-          if (row.key) acc[row.key] = row;
-          return acc;
-        }, {});
-        setShowcaseImages(next);
+        setShowcaseImages(rows.filter((row: HomeShowcaseImage) => row.key));
       })
       .catch(() => {
-        if (!cancelled) setShowcaseImages({});
+        if (!cancelled) setShowcaseImages([]);
       });
     return () => {
       cancelled = true;
@@ -321,15 +335,21 @@ export default function Home() {
     setLoginOpen(true);
   }
 
-  const renderedShowcases = showcases.map((showcase) => {
-    const remote = showcaseImages?.[showcase.showcaseKey];
-    return {
-      ...showcase,
-      beforeSrc: showcaseImages ? resolveMediaUrl(remote?.before_src) : "",
-      afterSrc: showcaseImages ? resolveMediaUrl(remote?.after_src) : "",
-      aspectRatio: remote?.aspect_ratio || showcase.aspectRatio
-    };
-  });
+  const showcaseDefaults = new Map(showcases.map((showcase) => [showcase.showcaseKey, showcase]));
+  const renderedShowcases = (showcaseImages || [])
+    .map((remote, orderIndex) => {
+      const showcase = showcaseDefaults.get(remote.key);
+      if (!showcase) return null;
+      return {
+        ...showcase,
+        index: String(orderIndex + 1).padStart(2, "0"),
+        title: remote.title || showcase.title,
+        beforeSrc: resolveMediaUrl(remote.before_src),
+        afterSrc: resolveMediaUrl(remote.after_src),
+        aspectRatio: remote.aspect_ratio || showcase.aspectRatio
+      };
+    })
+    .filter((showcase): showcase is (typeof showcases)[number] => Boolean(showcase));
 
   return (
     <div className="min-h-screen bg-[#faf9f7] text-[#101827]">
