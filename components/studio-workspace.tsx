@@ -33,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type StudioMode = "genesis" | "detail";
 type DetailMode = "connected" | "separate";
 type StudioPhase = "idle" | "planning" | "preview" | "complete";
+type GenesisEdition = "smart" | "professional";
 type ApiResponse<T> = {
   code: number;
   message: string;
@@ -105,6 +106,17 @@ const languageOptions = [
   "Bahasa Indonesia · 印尼语"
 ];
 const quantityOptions = Array.from({ length: 10 }, (_, index) => `${index + 1} 张`);
+const visualStyleOptions = ["简约清新风", "高级质感风", "活泼吸睛风", "复古怀旧风", "场景写实风", "科技未来风", "国风古韵风"];
+const genesisModuleOptions = [
+  ["hero_kv", "首屏 KV", "建立第一眼识别"],
+  ["overall_display", "整体展示", "完整形态与高级氛围"],
+  ["detail_closeup", "细节特写", "放大材质与工艺"],
+  ["usage_scene", "使用场景", "呈现真实使用状态"],
+  ["multi_color", "多色套装", "展示多 SKU 与组合美感"],
+  ["feature_compare", "功能对比", "参数、功效与差异说明"],
+  ["package_display", "包装展示", "礼盒、配件与开箱细节"],
+  ["trust_guarantee", "权益保障", "售后、质保与信任背书"]
+] as const;
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 const homeDraftKey = "dake_home_generation_draft";
 const maxReferenceImageSize = 30 * 1024 * 1024;
@@ -291,6 +303,9 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const [genesisRatio, setGenesisRatio] = useState("1:1 方图");
   const [genesisResolution, setGenesisResolution] = useState("标清 1K");
   const [genesisQuantity, setGenesisQuantity] = useState("1 张");
+  const [genesisEdition, setGenesisEdition] = useState<GenesisEdition>("smart");
+  const [genesisVisualStyle, setGenesisVisualStyle] = useState(visualStyleOptions[0]);
+  const [genesisModules, setGenesisModules] = useState<string[]>([]);
   const [detailLanguage, setDetailLanguage] = useState("中文");
   const [detailModel, setDetailModel] = useState(defaultModelOptions[0]);
   const [detailRatio, setDetailRatio] = useState("3:4 竖版");
@@ -367,13 +382,13 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const activeRatio = mode === "genesis" ? genesisRatio : detailRatio;
   const activePhase = mode === "genesis" ? genesisPhase : detailPhase;
   const activeUploads = mode === "genesis" ? genesisUploads : detailUploads;
-  const quantityCount = Number.parseInt(genesisQuantity, 10) || 1;
+  const quantityCount = genesisEdition === "professional" ? genesisModules.length : Number.parseInt(genesisQuantity, 10) || 1;
   const detailQuantityCount = Number.parseInt(detailQuantity, 10) || 1;
   const mainImageCost = configuredCost(mainConfigs, genesisModel, activeGenesisResolution, 30) * quantityCount;
   const detailImageCost = configuredCost(detailConfigs, detailModel, activeDetailResolution, 30) * detailQuantityCount;
   const activeCost = mode === "genesis" ? mainImageCost : detailImageCost;
   const hasCreditSnapshot = typeof user?.credits === "number";
-  const canFillGenesis = genesisUploads.length > 0 && brief.trim().length > 0;
+  const canFillGenesis = genesisUploads.length > 0 && brief.trim().length > 0 && (genesisEdition === "smart" || genesisModules.length > 0);
   const canFillDetail = detailUploads.length > 0 && detailProductDescription.trim().length > 0;
   const insufficientCredits = (mode === "genesis" ? canFillGenesis : canFillDetail) && hasCreditSnapshot && activeCost > Number(user?.credits || 0);
 
@@ -474,6 +489,10 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   async function generate() {
     if (mode === "genesis") {
       const cleanBrief = brief.trim();
+      const selectedModuleNames = genesisModuleOptions.filter(([key]) => genesisModules.includes(key)).map(([, title]) => title);
+      const professionalPrompt = genesisEdition === "professional"
+        ? `${cleanBrief}\n视觉风格：${genesisVisualStyle}\n需要生成的主图模块：${selectedModuleNames.join("、")}。每个模块对应生成一张独立主图，请严格按照模块内容进行规划和出图。`
+        : cleanBrief;
       if (!token || !canFillGenesis || insufficientCredits || isGenerating) return;
 
       setGenesisPhase("planning");
@@ -492,13 +511,16 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            prompt: cleanBrief,
+            prompt: professionalPrompt,
             model: genesisModel,
             ratio: genesisRatio,
             language: genesisLanguage,
             resolution: activeGenesisResolution,
             count: quantityCount,
             reference_count: genesisUploads.length,
+            edition: genesisEdition,
+            visual_style: genesisEdition === "professional" ? genesisVisualStyle : "",
+            modules: genesisEdition === "professional" ? selectedModuleNames : [],
             images: genesisUploads
           })
         });
@@ -577,7 +599,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
             <p className="mx-auto mt-4 max-w-[680px] text-base leading-8 text-[#697080]">{pageCopy.subtitle}</p>
           </div>
 
-          {mode === "genesis" && <GenesisStepper phase={genesisPhase} />}
+          {mode === "genesis" && <GenesisEditionSwitch value={genesisEdition} onChange={setGenesisEdition} />}
 
           <div className="mt-12 grid gap-6 lg:grid-cols-[minmax(0,0.98fr)_minmax(420px,0.86fr)] lg:items-start">
             <div className="space-y-6">
@@ -594,10 +616,13 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
                   <GenesisInputs brief={brief} setBrief={setBrief} />
                   <SettingsPanel
                     mode={mode}
+                    genesisEdition={genesisEdition}
                     language={genesisLanguage}
                     setLanguage={setGenesisLanguage}
                     quantity={genesisQuantity}
                     setQuantity={setGenesisQuantity}
+                    visualStyle={genesisVisualStyle}
+                    setVisualStyle={setGenesisVisualStyle}
                     model={genesisModel}
                     setModel={changeGenesisModel}
                     modelOptions={genesisModelOptions}
@@ -627,6 +652,10 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
                 />
               )}
 
+              {mode === "genesis" && genesisEdition === "professional" && (
+                <GenesisModuleSelector selected={genesisModules} onChange={setGenesisModules} />
+              )}
+
               <ActionPanel
                 mode={mode}
                 detailMode={detailMode}
@@ -635,6 +664,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
                 costCredits={activeCost}
                 insufficientCredits={insufficientCredits}
                 errorMessage={mode === "genesis" ? mainError : detailError}
+                disabledMessage={mode === "genesis" && genesisEdition === "professional" && genesisUploads.length > 0 && brief.trim().length > 0 && genesisModules.length === 0 ? "请至少选择 1 个主图模块" : undefined}
                 onGenerate={generate}
               />
             </div>
@@ -643,7 +673,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
               mode={mode}
               phase={activePhase}
               detailMode={detailMode}
-              quantity={mode === "genesis" ? genesisQuantity : detailQuantity}
+              quantity={mode === "genesis" ? `${Math.max(quantityCount, 1)} 张` : detailQuantity}
               ratio={activeRatio}
               model={activeModel}
               images={mode === "genesis" ? mainImages : detailImages}
@@ -735,21 +765,65 @@ function FloatingPromos() {
   );
 }
 
-function GenesisStepper({ phase }: { phase: StudioPhase }) {
-  const steps = ["输入", "生成", "生成中", "完成"];
-  const activeIndex = phase === "complete" ? 3 : phase === "preview" ? 2 : phase === "planning" ? 1 : 0;
+function GenesisEditionSwitch({ value, onChange }: { value: GenesisEdition; onChange: (value: GenesisEdition) => void }) {
   return (
-    <div data-testid="genesis-stepper" className="mx-auto mt-12 grid w-full max-w-[640px] grid-cols-4 gap-1 text-center text-xs font-semibold text-[#7c8492] sm:mt-16 sm:flex sm:items-center sm:justify-center sm:gap-5 sm:text-sm">
-      {steps.map((step, index) => (
-        <div key={step} data-testid="genesis-step" className="min-w-0 sm:flex sm:shrink-0 sm:items-center sm:gap-5">
-          <span className={`mx-auto flex min-w-0 flex-col items-center gap-1 sm:flex-row sm:gap-2 ${index <= activeIndex ? "font-bold text-[#101827]" : ""}`}>
-            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs transition sm:h-8 sm:w-8 sm:text-sm ${index <= activeIndex ? "bg-[#101827] text-white shadow-[0_10px_24px_-16px_rgba(16,24,39,0.75)]" : "bg-[#f0efec]"}`}>{index + 1}</span>
-            <span className="max-w-full truncate">{step}</span>
-          </span>
-          {index < steps.length - 1 && <span className={`hidden h-px w-14 sm:block ${index < activeIndex ? "bg-[#101827]" : "bg-[#d8d1c6]"}`} />}
-        </div>
-      ))}
+    <div className="mx-auto mt-12 flex flex-col items-center gap-3 sm:mt-16">
+      <div className="inline-flex rounded-full border border-[#e5ded2] bg-white p-1 shadow-[0_10px_30px_-24px_rgba(16,24,39,0.45)]">
+        {[
+          ["smart", "智能版"],
+          ["professional", "专业版"]
+        ].map(([key, label]) => {
+          const active = value === key;
+          return (
+            <button
+              key={key}
+              className={`h-10 min-w-[86px] rounded-full px-5 text-sm font-bold transition ${active ? "bg-[#101827] text-white shadow-[0_12px_26px_-18px_rgba(16,24,39,0.8)]" : "text-[#697080] hover:text-[#101827]"}`}
+              type="button"
+              onClick={() => onChange(key as GenesisEdition)}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-sm font-medium text-[#697080]">
+        {value === "smart" ? "智能版 · AI 自动规划主图构图与文案" : "专业版 · 自主选择主图模块与视觉风格"}
+      </p>
     </div>
+  );
+}
+
+function GenesisModuleSelector({ selected, onChange }: { selected: string[]; onChange: (value: string[]) => void }) {
+  function toggle(key: string) {
+    onChange(selected.includes(key) ? selected.filter((item) => item !== key) : [...selected, key]);
+  }
+
+  return (
+    <section className="rounded-[28px] border border-[#ded8cd] bg-white p-6">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-extrabold">模块选择（多选）</h3>
+          <p className="mt-1 text-sm text-[#697080]">每个模块对应生成 1 张主图。</p>
+        </div>
+        <span className="rounded-full bg-[#f0efec] px-3 py-1 text-xs font-bold text-[#697080]">已选 {selected.length}</span>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {genesisModuleOptions.map(([key, title, desc]) => {
+          const active = selected.includes(key);
+          return (
+            <button
+              key={key}
+              className={`min-h-[82px] rounded-2xl border px-5 py-4 text-left transition ${active ? "border-[#101827] bg-[#fbfaf8] shadow-[0_12px_30px_-24px_rgba(16,24,39,0.55)]" : "border-[#ded8cd] bg-[#fbfaf8] hover:border-[#101827]/55"}`}
+              type="button"
+              onClick={() => toggle(key)}
+            >
+              <span className="block text-base font-extrabold text-[#101827]">{title}</span>
+              <span className="mt-2 block text-sm font-medium text-[#697080]">{desc}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -979,10 +1053,13 @@ function DetailInputs({
 
 function SettingsPanel({
   mode,
+  genesisEdition = "smart",
   language,
   setLanguage,
   quantity,
   setQuantity,
+  visualStyle = visualStyleOptions[0],
+  setVisualStyle,
   model,
   setModel,
   modelOptions,
@@ -993,10 +1070,13 @@ function SettingsPanel({
   resolutionOptions
 }: {
   mode: StudioMode;
+  genesisEdition?: GenesisEdition;
   language: string;
   setLanguage: (value: string) => void;
   quantity: string;
   setQuantity: (value: string) => void;
+  visualStyle?: string;
+  setVisualStyle?: (value: string) => void;
   model: string;
   setModel: (value: string) => void;
   modelOptions: string[];
@@ -1010,7 +1090,8 @@ function SettingsPanel({
     <section className="rounded-[28px] border border-[#ded8cd] bg-white p-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="输出语言"><SelectLike value={language} onChange={setLanguage} options={languageOptions} /></Field>
-        {mode === "genesis" && <Field label="生成数量"><SelectLike value={quantity} onChange={setQuantity} options={quantityOptions} /></Field>}
+        {mode === "genesis" && genesisEdition === "smart" && <Field label="生成数量"><SelectLike value={quantity} onChange={setQuantity} options={quantityOptions} /></Field>}
+        {mode === "genesis" && genesisEdition === "professional" && <Field label="视觉风格"><SelectLike value={visualStyle} onChange={setVisualStyle || (() => undefined)} options={visualStyleOptions} /></Field>}
         <Field label="模型"><SelectLike value={model} onChange={setModel} options={modelOptions} /></Field>
         <Field label="宽高比"><SelectLike value={ratio} onChange={setRatio} options={ratios[mode]} /></Field>
       </div>
@@ -1037,6 +1118,7 @@ function ActionPanel({
   costCredits,
   insufficientCredits,
   errorMessage,
+  disabledMessage,
   onGenerate
 }: {
   mode: StudioMode;
@@ -1046,12 +1128,13 @@ function ActionPanel({
   costCredits: number;
   insufficientCredits: boolean;
   errorMessage: string;
+  disabledMessage?: string;
   onGenerate: () => void;
 }) {
   const disabled = !canGenerate || insufficientCredits;
   const label = mode === "genesis" ? "生成主图" : detailMode === "connected" ? "生成一键长图" : "生成详情图";
   const cost = `消耗 ${costCredits} 积分`;
-  const helperText = insufficientCredits ? cost : disabled ? (mode === "genesis" ? "请先上传产品素材并填写设计简报" : "请先上传产品素材并填写核心卖点") : cost;
+  const helperText = insufficientCredits ? cost : disabled ? (disabledMessage || (mode === "genesis" ? "请先上传产品素材并填写设计简报" : "请先上传产品素材并填写核心卖点")) : cost;
   return (
     <section className="rounded-[28px] border border-[#ded8cd] bg-white p-6">
       <button data-testid="main-generate-button" className="press-scale flex h-14 w-full items-center justify-center gap-2 rounded-[1.4rem] border border-[#172033] bg-[#101827] text-base font-bold text-[#f8f4ee] shadow-[0_14px_30px_-14px_rgba(16,24,39,0.38)] transition hover:-translate-y-px disabled:border-[#d7d2c7] disabled:bg-[#e7e2d9] disabled:text-[#8b8478]" disabled={disabled || isGenerating} type="button" onClick={onGenerate}>
