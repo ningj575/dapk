@@ -1,6 +1,6 @@
 "use client";
 
-import { Coins, Eraser, Images, LayoutTemplate, Menu, Sparkles, Video, WandSparkles } from "lucide-react";
+import { Coins, Eraser, Images, LayoutTemplate, Menu, Video, WandSparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 

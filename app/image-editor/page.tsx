@@ -257,7 +257,7 @@ function AppHeader() {
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <WorkspaceNav activeHref="/image-editor" />
-        <div className="-mr-2 flex items-center gap-1 sm:mr-0 sm:gap-2">
+        <div className="-mr-4 flex items-center gap-1 sm:mr-0 sm:gap-2">
           <AccountMenu />
           <MobileWorkspaceMenu activeHref="/image-editor" />
         </div>
@@ -949,7 +949,7 @@ function DeleteConversationDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
-          <div className="-mr-2 flex items-center gap-1 sm:mr-0 sm:gap-2">
+          <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 shrink-0 text-[#ff9d00]" />
             <h2 className="text-base font-extrabold text-[#101827]">是否删除该条消息?</h2>
           </div>

@@ -733,7 +733,7 @@ function AppHeader({ activeMode, onModeChange }: { activeMode: StudioMode; onMod
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <WorkspaceNav activeHref={activeMode === "genesis" ? "/studio-genesis" : "/ecom-studio"} onModeChange={onModeChange} />
-        <div className="-mr-2 flex items-center gap-1 sm:mr-0 sm:gap-2">
+        <div className="-mr-4 flex items-center gap-1 sm:mr-0 sm:gap-2">
           <AccountMenu />
           <MobileWorkspaceMenu activeHref={activeMode === "genesis" ? "/studio-genesis" : "/ecom-studio"} onModeChange={onModeChange} />
         </div>
