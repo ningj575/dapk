@@ -127,28 +127,10 @@ a {
 
 @media (max-width: 767px) {
   header.sticky > div {
-    height: auto !important;
     min-height: 64px;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-bottom: 10px;
   }
 
   header.sticky nav.hidden {
-    order: 3;
-    display: flex !important;
-    width: 100%;
-    gap: 4px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scrollbar-width: none;
-  }
-
-  header.sticky nav.hidden::-webkit-scrollbar {
-    display: none;
-  }
-
-  header.sticky nav.hidden a {
-    flex: 0 0 auto;
+    display: none !important;
   }
 }
