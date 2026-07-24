@@ -304,7 +304,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const [genesisResolution, setGenesisResolution] = useState("标清 1K");
   const [genesisQuantity, setGenesisQuantity] = useState("1 张");
   const [genesisEdition, setGenesisEdition] = useState<GenesisEdition>("smart");
-  const [genesisVisualStyle, setGenesisVisualStyle] = useState(visualStyleOptions[0]);
+  const [genesisVisualStyle, setGenesisVisualStyle] = useState("");
   const [genesisModules, setGenesisModules] = useState<string[]>([]);
   const [detailLanguage, setDetailLanguage] = useState("中文");
   const [detailModel, setDetailModel] = useState(defaultModelOptions[0]);
@@ -490,9 +490,6 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
     if (mode === "genesis") {
       const cleanBrief = brief.trim();
       const selectedModuleNames = genesisModuleOptions.filter(([key]) => genesisModules.includes(key)).map(([, title]) => title);
-      const professionalPrompt = genesisEdition === "professional"
-        ? `${cleanBrief}\n视觉风格：${genesisVisualStyle}\n需要生成的主图模块：${selectedModuleNames.join("、")}。每个模块对应生成一张独立主图，请严格按照模块内容进行规划和出图。`
-        : cleanBrief;
       if (!token || !canFillGenesis || insufficientCredits || isGenerating) return;
 
       setGenesisPhase("planning");
@@ -511,7 +508,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            prompt: professionalPrompt,
+            prompt: cleanBrief,
             model: genesisModel,
             ratio: genesisRatio,
             language: genesisLanguage,
@@ -519,7 +516,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
             count: quantityCount,
             reference_count: genesisUploads.length,
             edition: genesisEdition,
-            visual_style: genesisEdition === "professional" ? genesisVisualStyle : "",
+            visual_style: genesisEdition === "professional" ? genesisVisualStyle.trim() : "",
             modules: genesisEdition === "professional" ? selectedModuleNames : [],
             images: genesisUploads
           })
@@ -1058,7 +1055,7 @@ function SettingsPanel({
   setLanguage,
   quantity,
   setQuantity,
-  visualStyle = visualStyleOptions[0],
+  visualStyle = "",
   setVisualStyle,
   model,
   setModel,
@@ -1091,7 +1088,7 @@ function SettingsPanel({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="输出语言"><SelectLike value={language} onChange={setLanguage} options={languageOptions} /></Field>
         {mode === "genesis" && genesisEdition === "smart" && <Field label="生成数量"><SelectLike value={quantity} onChange={setQuantity} options={quantityOptions} /></Field>}
-        {mode === "genesis" && genesisEdition === "professional" && <Field label="视觉风格"><SelectLike value={visualStyle} onChange={setVisualStyle || (() => undefined)} options={visualStyleOptions} /></Field>}
+        {mode === "genesis" && genesisEdition === "professional" && <Field label="视觉风格"><ComboSelectLike value={visualStyle} onChange={setVisualStyle || (() => undefined)} options={visualStyleOptions} placeholder="请选择，或直接输入" /></Field>}
         <Field label="模型"><SelectLike value={model} onChange={setModel} options={modelOptions} /></Field>
         <Field label="宽高比"><SelectLike value={ratio} onChange={setRatio} options={ratios[mode]} /></Field>
       </div>
@@ -1488,6 +1485,57 @@ function SelectLike({ value, onChange, options }: { value: string; onChange: (va
                 type="button"
                 role="option"
                 aria-selected={selected}
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                }}
+              >
+                <span className="min-w-0 flex-1 truncate">{option}</span>
+                {selected && <Check className="h-4 w-4 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ComboSelectLike({ value, onChange, options, placeholder }: { value: string; onChange: (value: string) => void; options: string[]; placeholder: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="relative min-w-0 max-w-full"
+      onBlur={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+        setOpen(false);
+      }}
+    >
+      <div className="studio-input flex w-full min-w-0 max-w-full items-center gap-3 pr-4 text-sm">
+        <input
+          className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#101827] outline-none placeholder:text-[#8b93a1]"
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => onChange(event.target.value)}
+          onFocus={() => setOpen(true)}
+        />
+        <button className="shrink-0" type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+          <ChevronDown className={`h-4 w-4 text-[#8b93a1] transition ${open ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-40 max-h-72 w-full overflow-y-auto rounded-2xl border border-[#d8d1c6] bg-white py-2 shadow-[0_18px_42px_-26px_rgba(16,24,39,0.45)]" role="listbox">
+          {options.map((option) => {
+            const selected = option === value;
+            return (
+              <button
+                key={option}
+                className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition ${selected ? "bg-[#101827] font-bold text-white" : "text-[#101827] hover:bg-[#f0efec]"}`}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   onChange(option);
                   setOpen(false);
