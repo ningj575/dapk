@@ -1,7 +1,7 @@
 "use client";
 
 import { AccountMenu } from "@/components/account-menu";
-import { WorkspaceNav } from "@/components/workspace-nav";
+import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
 import { CalendarDays, Check, Circle, Mail, Pencil, UserRound, X } from "lucide-react";
@@ -49,7 +49,10 @@ function AppHeader() {
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <WorkspaceNav />
-        <AccountMenu />
+        <div className="flex items-center gap-2">
+          <AccountMenu />
+          <MobileWorkspaceMenu />
+        </div>
       </div>
     </header>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { AccountMenu } from "@/components/account-menu";
-import { WorkspaceNav } from "@/components/workspace-nav";
+import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
 import {
@@ -142,7 +142,10 @@ function AppHeader() {
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <WorkspaceNav activeHref="/pricing" />
-        <AccountMenu />
+        <div className="flex items-center gap-2">
+          <AccountMenu />
+          <MobileWorkspaceMenu activeHref="/pricing" />
+        </div>
       </div>
     </header>
   );

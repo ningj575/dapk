@@ -24,7 +24,7 @@ import {
 import Link from "next/link";
 import { AuthGuard } from "@/components/auth-guard";
 import { AccountMenu } from "@/components/account-menu";
-import { WorkspaceNav } from "@/components/workspace-nav";
+import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { notifyAuthChanged, useAuthToken } from "@/components/auth-state";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1090,7 +1090,10 @@ function AppHeader() {
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <WorkspaceNav activeHref="/video-studio" />
-        <AccountMenu />
+        <div className="flex items-center gap-2">
+          <AccountMenu />
+          <MobileWorkspaceMenu activeHref="/video-studio" />
+        </div>
       </div>
     </header>
   );

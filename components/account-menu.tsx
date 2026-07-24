@@ -1,7 +1,7 @@
 "use client";
 
 import { clearAuth, refreshAuthUser, useAuthToken, useAuthUser } from "@/components/auth-state";
-import { ChevronDown, CircleUserRound, Coins, FileClock, LogOut } from "lucide-react";
+import { CircleUserRound, Coins, FileClock, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -56,7 +56,6 @@ export function AccountMenu() {
           X
         </span>
         <span className="hidden max-w-[130px] truncate sm:inline">{displayName}</span>
-        <ChevronDown className={`h-4 w-4 shrink-0 transition ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (

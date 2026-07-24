@@ -26,7 +26,7 @@ import Link from "next/link";
 import { AccountMenu } from "@/components/account-menu";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
 import { ImageLightbox } from "@/components/image-lightbox";
-import { WorkspaceNav } from "@/components/workspace-nav";
+import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { downloadImage } from "@/lib/download-image";
 import type { DragEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -733,7 +733,10 @@ function AppHeader({ activeMode, onModeChange }: { activeMode: StudioMode; onMod
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <WorkspaceNav activeHref={activeMode === "genesis" ? "/studio-genesis" : "/ecom-studio"} onModeChange={onModeChange} />
-        <AccountMenu />
+        <div className="flex items-center gap-2">
+          <AccountMenu />
+          <MobileWorkspaceMenu activeHref={activeMode === "genesis" ? "/studio-genesis" : "/ecom-studio"} onModeChange={onModeChange} />
+        </div>
       </div>
     </header>
   );
