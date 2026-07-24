@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { AuthGuard } from "@/components/auth-guard";
 import { AccountMenu } from "@/components/account-menu";
+import { WorkspaceNav } from "@/components/workspace-nav";
 import { notifyAuthChanged, useAuthToken } from "@/components/auth-state";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1088,13 +1089,7 @@ function AppHeader() {
           <span className="font-display text-xl font-extrabold tracking-tight">Xinglu</span>
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
-        <nav className="hidden items-center gap-1 md:flex">
-          {navItems.map(([label, href]) => (
-            <Link key={label} href={href}>
-              <span className={`inline-flex h-10 items-center rounded-[14px] px-4 text-sm font-semibold transition ${label === "视频生成" ? "bg-[#101827] text-white" : "text-[#5f6674] hover:bg-[#ede8df] hover:text-[#101827]"}`}>{label}</span>
-            </Link>
-          ))}
-        </nav>
+        <WorkspaceNav activeHref="/video-studio" />
         <AccountMenu />
       </div>
     </header>

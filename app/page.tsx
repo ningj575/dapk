@@ -214,7 +214,7 @@ function isVideoMedia(src?: string) {
 
 export default function Home() {
   const [loginOpen, setLoginOpen] = useState(false);
-  const [redirectTo, setRedirectTo] = useState("/watermark-remover");
+  const [redirectTo, setRedirectTo] = useState("/image-editor");
   const [showcaseImages, setShowcaseImages] = useState<HomeShowcaseImage[] | null>(null);
   const [heroTool, setHeroTool] = useState<HeroToolKey>("image-editor");
   const [heroPrompt, setHeroPrompt] = useState("");
@@ -225,7 +225,7 @@ export default function Home() {
   const router = useRouter();
   const token = useAuthToken();
   const ready = Boolean(useClientReady());
-  const openLogin = (target = "/watermark-remover") => {
+  const openLogin = (target = "/image-editor") => {
     if (token) {
       router.push(target);
       return;
@@ -369,7 +369,7 @@ export default function Home() {
           <button
             className="press-scale inline-flex h-9 items-center justify-center gap-2 rounded-[0.9rem] border border-[#171d2a] bg-[#101827] px-4 text-sm font-semibold text-[#f8f4ee] shadow-[0_2px_8px_rgba(16,24,39,0.08),0_14px_34px_-12px_rgba(16,24,39,0.38)] transition-all duration-200 hover:-translate-y-px hover:bg-[#151f31]"
             type="button"
-            onClick={() => openLogin("/watermark-remover")}
+            onClick={() => openLogin("/image-editor")}
           >
             {token ? "立即体验" : "免费体验"}
             <ArrowRight className="h-3.5 w-3.5" />

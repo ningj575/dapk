@@ -26,6 +26,7 @@ import Link from "next/link";
 import { AccountMenu } from "@/components/account-menu";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
 import { ImageLightbox } from "@/components/image-lightbox";
+import { WorkspaceNav } from "@/components/workspace-nav";
 import { downloadImage } from "@/lib/download-image";
 import type { DragEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -731,35 +732,7 @@ function AppHeader({ activeMode, onModeChange }: { activeMode: StudioMode; onMod
           <span className="font-display text-xl font-extrabold tracking-tight">Xinglu</span>
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
-        <nav className="hidden items-center gap-1 md:flex">
-          {navItems.map(([label, href]) => {
-            const selected = (activeMode === "genesis" && label === "主图") || (activeMode === "detail" && label === "详情图");
-            const button = (
-              <span className={`inline-flex h-10 items-center whitespace-nowrap rounded-[14px] px-4 text-sm font-semibold transition ${selected ? "bg-[#101827] text-white" : "text-[#5f6674] hover:bg-[#ede8df] hover:text-[#101827]"}`}>
-                {label}
-              </span>
-            );
-            if (label === "主图") {
-              return (
-                <button key={label} type="button" onClick={() => onModeChange("genesis")}>
-                  {button}
-                </button>
-              );
-            }
-            if (label === "详情图") {
-              return (
-                <button key={label} type="button" onClick={() => onModeChange("detail")}>
-                  {button}
-                </button>
-              );
-            }
-            return (
-              <Link key={label} href={href}>
-                {button}
-              </Link>
-            );
-          })}
-        </nav>
+        <WorkspaceNav activeHref={activeMode === "genesis" ? "/studio-genesis" : "/ecom-studio"} onModeChange={onModeChange} />
         <AccountMenu />
       </div>
     </header>

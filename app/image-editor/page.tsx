@@ -1,6 +1,7 @@
 "use client";
 
 import { AccountMenu } from "@/components/account-menu";
+import { WorkspaceNav } from "@/components/workspace-nav";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken } from "@/components/auth-state";
 import { ImageLightbox } from "@/components/image-lightbox";
@@ -255,18 +256,7 @@ function AppHeader() {
           <span className="font-display text-xl font-extrabold tracking-tight">Xinglu</span>
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
-        <nav className="hidden items-center gap-1 md:flex">
-          {navItems.map(([label, href]) => {
-            const selected = href === "/image-editor";
-            return (
-              <Link key={label} href={href}>
-                <span className={`inline-flex h-10 items-center whitespace-nowrap rounded-[14px] px-4 text-sm font-semibold transition ${selected ? "bg-[#101827] text-white" : "text-[#5f6674] hover:bg-[#ede8df] hover:text-[#101827]"}`}>
-                  {label}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
+        <WorkspaceNav activeHref="/image-editor" />
         <AccountMenu />
       </div>
     </header>
