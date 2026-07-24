@@ -602,7 +602,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
             <div className="space-y-6">
               <UploadCard
                 title="产品素材"
-                subtitle={mode === "genesis" ? "上传清晰、干净、光线稳定的产品图。" : "上传清晰的产品图片"}
+                subtitle={mode === "genesis" ? "上传不同角度产品图或细节图效果更佳。" : "上传多视角、画面清晰的产品白底图，展示效果更佳"}
                 items={activeUploads}
                 setItems={mode === "genesis" ? setGenesisUploads : setDetailUploads}
                 token={token || ""}
@@ -802,7 +802,7 @@ function GenesisModuleSelector({ selected, onChange }: { selected: string[]; onC
           <h3 className="text-base font-extrabold">模块选择（多选）</h3>
           <p className="mt-1 text-sm text-[#697080]">每个模块对应生成 1 张主图。</p>
         </div>
-        <span className="rounded-full bg-[#f0efec] px-3 py-1 text-xs font-bold text-[#697080]">已选 {selected.length}</span>
+        <span className="text-xs font-medium text-[#8b909a]">已选 {selected.length}/{genesisModuleOptions.length}</span>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {genesisModuleOptions.map(([key, title, desc]) => {
@@ -810,10 +810,15 @@ function GenesisModuleSelector({ selected, onChange }: { selected: string[]; onC
           return (
             <button
               key={key}
-              className={`min-h-[82px] rounded-2xl border px-5 py-4 text-left transition ${active ? "border-[#101827] bg-[#fbfaf8] shadow-[0_12px_30px_-24px_rgba(16,24,39,0.55)]" : "border-[#ded8cd] bg-[#fbfaf8] hover:border-[#101827]/55"}`}
+              className={`relative min-h-[82px] rounded-2xl border px-5 py-4 pr-12 text-left transition ${active ? "border-[#101827] bg-[#fbfaf8] shadow-[0_12px_30px_-24px_rgba(16,24,39,0.55)]" : "border-[#ded8cd] bg-[#fbfaf8] hover:border-[#101827]/55"}`}
               type="button"
               onClick={() => toggle(key)}
             >
+              {active && (
+                <span className="absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-[#101827] text-white">
+                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                </span>
+              )}
               <span className="block text-base font-extrabold text-[#101827]">{title}</span>
               <span className="mt-2 block text-sm font-medium text-[#697080]">{desc}</span>
             </button>
@@ -953,7 +958,7 @@ function UploadCard({ title, subtitle, items, setItems, token }: { title: string
 function GenesisInputs({ brief, setBrief }: { brief: string; setBrief: (value: string) => void }) {
   return (
     <>
-      <TextCard icon={<WandSparkles className="h-5 w-5" />} title="设计简报" subtitle="描述产品名称、核心卖点和希望呈现的主图风格。" value={brief} setValue={setBrief} placeholder="描述你的产品名称、核心卖点和想要的主图风格。" />
+      <TextCard icon={<WandSparkles className="h-5 w-5" />} title="设计简报" subtitle="描述产品名称、核心卖点和具体参数。" value={brief} setValue={setBrief} placeholder="描述你的产品名称、核心卖点和产品具体参数。" />
     </>
   );
 }
