@@ -24,30 +24,32 @@ function NavAction({
   label,
   children,
   onModeChange,
-  onClick
+  onClick,
+  className
 }: {
   href: string;
   label: string;
   children: ReactNode;
   onModeChange?: (mode: WorkspaceMode) => void;
   onClick?: () => void;
+  className?: string;
 }) {
   if (onModeChange && href === "/studio-genesis") {
     return (
-      <button type="button" onClick={() => { onClick?.(); onModeChange("genesis"); }}>
+      <button className={className} type="button" onClick={() => { onClick?.(); onModeChange("genesis"); }}>
         {children}
       </button>
     );
   }
   if (onModeChange && href === "/ecom-studio") {
     return (
-      <button type="button" onClick={() => { onClick?.(); onModeChange("detail"); }}>
+      <button className={className} type="button" onClick={() => { onClick?.(); onModeChange("detail"); }}>
         {children}
       </button>
     );
   }
   return (
-    <Link href={href} onClick={onClick}>
+    <Link className={className} href={href} onClick={onClick}>
       {children}
     </Link>
   );
@@ -117,8 +119,8 @@ export function MobileWorkspaceMenu({
             {workspaceNavItems.map(([label, href, Icon]) => {
               const selected = isSelected(activeHref, activeLabel, href, label);
               return (
-                <NavAction key={label} href={href} label={label} onModeChange={onModeChange} onClick={() => setOpen(false)}>
-                  <span className={`flex h-12 items-center gap-3 rounded-[10px] px-4 text-sm font-bold transition ${selected ? "bg-[#101827] text-white" : "text-[#5f6674] hover:bg-[#f6f5f3] hover:text-[#101827]"}`}>
+                <NavAction key={label} className="block w-full text-left" href={href} label={label} onModeChange={onModeChange} onClick={() => setOpen(false)}>
+                  <span className={`flex h-12 w-full items-center gap-3 rounded-[10px] px-4 text-sm font-bold transition ${selected ? "bg-[#101827] text-white" : "text-[#5f6674] hover:bg-[#f6f5f3] hover:text-[#101827]"}`}>
                     <Icon className="h-4 w-4" />
                     {label}
                   </span>

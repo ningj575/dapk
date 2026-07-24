@@ -49,7 +49,7 @@ function AppHeader() {
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <WorkspaceNav />
-        <div className="flex items-center gap-2">
+        <div className="-mr-2 flex items-center gap-1 sm:mr-0 sm:gap-2">
           <AccountMenu />
           <MobileWorkspaceMenu />
         </div>

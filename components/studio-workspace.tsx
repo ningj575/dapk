@@ -372,12 +372,12 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
         ? {
             badge: "电商主图规划",
             title: "主图生成",
-            subtitle: "智能识别产品视觉风格与宣传文案，一键批量生成平台标准化专业主图"
+            subtitle: "上传产品图， 自动生成整套电商主图"
           }
         : {
             badge: "详情页规划",
             title: "详情图生成",
-            subtitle: "上传产品实拍图，智能识别产品结构、核心卖点，快速生成多角度、多场景全套详情视觉素材。"
+            subtitle: "上传产品实拍图，填写核心卖点，快速生成多角度、多场景全套详情视觉素材。"
           },
     [mode]
   );
@@ -733,7 +733,7 @@ function AppHeader({ activeMode, onModeChange }: { activeMode: StudioMode; onMod
           <span className="text-xs font-medium text-text-tertiary">AI</span>
         </Link>
         <WorkspaceNav activeHref={activeMode === "genesis" ? "/studio-genesis" : "/ecom-studio"} onModeChange={onModeChange} />
-        <div className="flex items-center gap-2">
+        <div className="-mr-2 flex items-center gap-1 sm:mr-0 sm:gap-2">
           <AccountMenu />
           <MobileWorkspaceMenu activeHref={activeMode === "genesis" ? "/studio-genesis" : "/ecom-studio"} onModeChange={onModeChange} />
         </div>
