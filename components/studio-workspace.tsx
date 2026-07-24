@@ -34,6 +34,7 @@ type StudioMode = "genesis" | "detail";
 type DetailMode = "connected" | "separate";
 type StudioPhase = "idle" | "planning" | "preview" | "complete";
 type GenesisEdition = "smart" | "professional";
+type ModuleOption = [string, string, string];
 type ApiResponse<T> = {
   code: number;
   message: string;
@@ -107,7 +108,7 @@ const languageOptions = [
 ];
 const quantityOptions = Array.from({ length: 10 }, (_, index) => `${index + 1} 张`);
 const visualStyleOptions = ["简约清新风", "高级质感风", "活泼吸睛风", "复古怀旧风", "场景写实风", "科技未来风", "国风古韵风"];
-const genesisModuleOptions = [
+const genesisModuleOptions: ModuleOption[] = [
   ["hero_kv", "首屏 KV", "建立第一眼识别"],
   ["overall_display", "整体展示", "完整形态与高级氛围"],
   ["detail_closeup", "细节特写", "放大材质与工艺"],
@@ -273,7 +274,7 @@ function resolutionLabel(value: string) {
   return value;
 }
 
-const detailModules = [
+const detailModules: ModuleOption[] = [
   ["hero-visual", "首屏主视觉", "传递核心价值"],
   ["core-selling-point", "核心卖点图", "突出差异化优势"],
   ["usage-scene", "使用场景图", "呈现真实使用场景"],
@@ -289,8 +290,7 @@ const detailModules = [
   ["series-display", "系列展示图", "多色或多 SKU 展示"],
   ["ingredients", "商品成分图", "展示配方/材质/成分"],
   ["after-sales", "售后保障图", "说明质保退换政策"],
-  ["usage-tips", "使用建议图", "商品使用的注意事项"],
-  ["buyer-show", "买家秀", "真实用户视角"]
+  ["usage-tips", "使用建议图", "商品使用的注意事项"]
 ];
 
 export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
@@ -311,6 +311,9 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const [detailRatio, setDetailRatio] = useState("3:4 竖版");
   const [detailResolution, setDetailResolution] = useState("标清 1K");
   const [detailQuantity, setDetailQuantity] = useState("1 张");
+  const [detailEdition, setDetailEdition] = useState<GenesisEdition>("professional");
+  const [detailVisualStyle, setDetailVisualStyle] = useState("");
+  const [detailSelectedModules, setDetailSelectedModules] = useState<string[]>([]);
   const [brief, setBrief] = useState("");
   const [genesisUploads, setGenesisUploads] = useState<string[]>([]);
   const [detailUploads, setDetailUploads] = useState<string[]>([]);
@@ -373,7 +376,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
         : {
             badge: "详情页规划",
             title: "详情图生成",
-            subtitle: "上传产品实拍图，智能识别产品结构、核心卖点，快速生成多角度、多场景全套详情视觉素材。无需掌握设计技能，短短几分钟一站式完成完整详情页打造。"
+            subtitle: "上传产品实拍图，智能识别产品结构、核心卖点，快速生成多角度、多场景全套详情视觉素材。"
           },
     [mode]
   );
@@ -383,13 +386,13 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const activePhase = mode === "genesis" ? genesisPhase : detailPhase;
   const activeUploads = mode === "genesis" ? genesisUploads : detailUploads;
   const quantityCount = genesisEdition === "professional" ? genesisModules.length : Number.parseInt(genesisQuantity, 10) || 1;
-  const detailQuantityCount = Number.parseInt(detailQuantity, 10) || 1;
+  const detailQuantityCount = detailEdition === "professional" ? detailSelectedModules.length : Number.parseInt(detailQuantity, 10) || 1;
   const mainImageCost = configuredCost(mainConfigs, genesisModel, activeGenesisResolution, 30) * quantityCount;
   const detailImageCost = configuredCost(detailConfigs, detailModel, activeDetailResolution, 30) * detailQuantityCount;
   const activeCost = mode === "genesis" ? mainImageCost : detailImageCost;
   const hasCreditSnapshot = typeof user?.credits === "number";
   const canFillGenesis = genesisUploads.length > 0 && brief.trim().length > 0 && (genesisEdition === "smart" || genesisModules.length > 0);
-  const canFillDetail = detailUploads.length > 0 && detailProductDescription.trim().length > 0;
+  const canFillDetail = detailUploads.length > 0 && detailProductDescription.trim().length > 0 && (detailEdition === "smart" || detailSelectedModules.length > 0);
   const insufficientCredits = (mode === "genesis" ? canFillGenesis : canFillDetail) && hasCreditSnapshot && activeCost > Number(user?.credits || 0);
 
   useEffect(() => {
@@ -537,6 +540,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
       }
       return;
     }
+    const selectedDetailModuleNames = detailModules.filter(([key]) => detailSelectedModules.includes(key)).map(([, title]) => title);
     if (!token || !canFillDetail || insufficientCredits || isGenerating) return;
     setDetailPhase("planning");
     setDetailError("");
@@ -560,6 +564,9 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
           language: detailLanguage,
           resolution: activeDetailResolution,
           count: detailQuantityCount,
+          edition: detailEdition,
+          visual_style: detailEdition === "professional" ? detailVisualStyle.trim() : "",
+          modules: detailEdition === "professional" ? selectedDetailModuleNames : [],
           reference_count: detailUploads.length,
           images: detailUploads
         })
@@ -596,7 +603,16 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
             <p className="mx-auto mt-4 max-w-[680px] text-base leading-8 text-[#697080]">{pageCopy.subtitle}</p>
           </div>
 
-          {mode === "genesis" && <GenesisEditionSwitch value={genesisEdition} onChange={setGenesisEdition} />}
+          {mode === "genesis" ? (
+            <GenesisEditionSwitch value={genesisEdition} onChange={setGenesisEdition} />
+          ) : (
+            <GenesisEditionSwitch
+              value={detailEdition}
+              onChange={setDetailEdition}
+              smartDescription="智能版 · AI 自动规划详情图内容与文案"
+              professionalDescription="专业版 · 自主选择详情页模块与视觉风格"
+            />
+          )}
 
           <div className="mt-12 grid gap-6 lg:grid-cols-[minmax(0,0.98fr)_minmax(420px,0.86fr)] lg:items-start">
             <div className="space-y-6">
@@ -632,12 +648,15 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
                 </>
               ) : (
                 <DetailInputs
+                  detailEdition={detailEdition}
                   productDescription={detailProductDescription}
                   setProductDescription={setDetailProductDescription}
                   language={detailLanguage}
                   setLanguage={setDetailLanguage}
                   quantity={detailQuantity}
                   setQuantity={setDetailQuantity}
+                  visualStyle={detailVisualStyle}
+                  setVisualStyle={setDetailVisualStyle}
                   model={detailModel}
                   setModel={changeDetailModel}
                   modelOptions={detailModelOptions}
@@ -652,6 +671,15 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
               {mode === "genesis" && genesisEdition === "professional" && (
                 <GenesisModuleSelector selected={genesisModules} onChange={setGenesisModules} />
               )}
+              {mode === "detail" && detailEdition === "professional" && (
+                <GenesisModuleSelector
+                  title="详情页模块（多选）"
+                  subtitle="每个模块对应生成 1 张详情图。"
+                  options={detailModules}
+                  selected={detailSelectedModules}
+                  onChange={setDetailSelectedModules}
+                />
+              )}
 
               <ActionPanel
                 mode={mode}
@@ -661,7 +689,13 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
                 costCredits={activeCost}
                 insufficientCredits={insufficientCredits}
                 errorMessage={mode === "genesis" ? mainError : detailError}
-                disabledMessage={mode === "genesis" && genesisEdition === "professional" && genesisUploads.length > 0 && brief.trim().length > 0 && genesisModules.length === 0 ? "请至少选择 1 个主图模块" : undefined}
+                disabledMessage={
+                  mode === "genesis" && genesisEdition === "professional" && genesisUploads.length > 0 && brief.trim().length > 0 && genesisModules.length === 0
+                    ? "请至少选择 1 个主图模块"
+                    : mode === "detail" && detailEdition === "professional" && detailUploads.length > 0 && detailProductDescription.trim().length > 0 && detailSelectedModules.length === 0
+                      ? "请至少选择 1 个详情页模块"
+                      : undefined
+                }
                 onGenerate={generate}
               />
             </div>
@@ -670,7 +704,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
               mode={mode}
               phase={activePhase}
               detailMode={detailMode}
-              quantity={mode === "genesis" ? `${Math.max(quantityCount, 1)} 张` : detailQuantity}
+              quantity={mode === "genesis" ? `${Math.max(quantityCount, 1)} 张` : `${Math.max(detailQuantityCount, 1)} 张`}
               ratio={activeRatio}
               model={activeModel}
               images={mode === "genesis" ? mainImages : detailImages}
@@ -762,7 +796,17 @@ function FloatingPromos() {
   );
 }
 
-function GenesisEditionSwitch({ value, onChange }: { value: GenesisEdition; onChange: (value: GenesisEdition) => void }) {
+function GenesisEditionSwitch({
+  value,
+  onChange,
+  smartDescription = "智能版 · AI 自动规划主图构图与文案",
+  professionalDescription = "专业版 · 自主选择主图模块与视觉风格"
+}: {
+  value: GenesisEdition;
+  onChange: (value: GenesisEdition) => void;
+  smartDescription?: string;
+  professionalDescription?: string;
+}) {
   return (
     <div className="mx-auto mt-12 flex flex-col items-center gap-3 sm:mt-16">
       <div className="inline-flex rounded-full border border-[#e5ded2] bg-white p-1 shadow-[0_10px_30px_-24px_rgba(16,24,39,0.45)]">
@@ -784,13 +828,25 @@ function GenesisEditionSwitch({ value, onChange }: { value: GenesisEdition; onCh
         })}
       </div>
       <p className="text-sm font-medium text-[#697080]">
-        {value === "smart" ? "智能版 · AI 自动规划主图构图与文案" : "专业版 · 自主选择主图模块与视觉风格"}
+        {value === "smart" ? smartDescription : professionalDescription}
       </p>
     </div>
   );
 }
 
-function GenesisModuleSelector({ selected, onChange }: { selected: string[]; onChange: (value: string[]) => void }) {
+function GenesisModuleSelector({
+  selected,
+  onChange,
+  options = genesisModuleOptions,
+  title = "模块选择（多选）",
+  subtitle = "每个模块对应生成 1 张主图。"
+}: {
+  selected: string[];
+  onChange: (value: string[]) => void;
+  options?: ModuleOption[];
+  title?: string;
+  subtitle?: string;
+}) {
   function toggle(key: string) {
     onChange(selected.includes(key) ? selected.filter((item) => item !== key) : [...selected, key]);
   }
@@ -799,13 +855,13 @@ function GenesisModuleSelector({ selected, onChange }: { selected: string[]; onC
     <section className="rounded-[28px] border border-[#ded8cd] bg-white p-6">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-base font-extrabold">模块选择（多选）</h3>
-          <p className="mt-1 text-sm text-[#697080]">每个模块对应生成 1 张主图。</p>
+          <h3 className="text-base font-extrabold">{title}</h3>
+          <p className="mt-1 text-sm text-[#697080]">{subtitle}</p>
         </div>
-        <span className="text-xs font-medium text-[#8b909a]">已选 {selected.length}/{genesisModuleOptions.length}</span>
+        <span className="text-xs font-medium text-[#8b909a]">已选 {selected.length}/{options.length}</span>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {genesisModuleOptions.map(([key, title, desc]) => {
+        {options.map(([key, title, desc]) => {
           const active = selected.includes(key);
           return (
             <button
@@ -980,12 +1036,15 @@ function TextCard({ icon, title, subtitle, value, setValue, placeholder }: { ico
 }
 
 function DetailInputs({
+  detailEdition,
   productDescription,
   setProductDescription,
   language,
   setLanguage,
   quantity,
   setQuantity,
+  visualStyle,
+  setVisualStyle,
   model,
   setModel,
   modelOptions,
@@ -995,12 +1054,15 @@ function DetailInputs({
   setResolution,
   resolutionOptions
 }: {
+  detailEdition: GenesisEdition;
   productDescription: string;
   setProductDescription: (value: string) => void;
   language: string;
   setLanguage: (value: string) => void;
   quantity: string;
   setQuantity: (value: string) => void;
+  visualStyle: string;
+  setVisualStyle: (value: string) => void;
   model: string;
   setModel: (value: string) => void;
   modelOptions: string[];
@@ -1032,7 +1094,8 @@ function DetailInputs({
         <div className="mt-6 border-t border-[#ebe5da] pt-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="输出语言"><SelectLike value={language} onChange={setLanguage} options={languageOptions} /></Field>
-            <Field label="生成数量"><SelectLike value={quantity} onChange={setQuantity} options={quantityOptions} /></Field>
+            {detailEdition === "smart" && <Field label="生成数量"><SelectLike value={quantity} onChange={setQuantity} options={quantityOptions} /></Field>}
+            {detailEdition === "professional" && <Field label="视觉风格"><ComboSelectLike value={visualStyle} onChange={setVisualStyle} options={visualStyleOptions} placeholder="请选择，或直接输入" /></Field>}
             <Field label="模型"><SelectLike value={model} onChange={setModel} options={modelOptions} /></Field>
             <Field label="宽高比"><SelectLike value={ratio} onChange={setRatio} options={ratios.detail} /></Field>
           </div>
