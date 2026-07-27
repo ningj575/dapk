@@ -20,6 +20,7 @@ import {
   Sparkles,
   Upload,
   WandSparkles,
+  HelpCircle,
   X
 } from "lucide-react";
 import Link from "next/link";
@@ -28,14 +29,21 @@ import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAut
 import { ImageLightbox } from "@/components/image-lightbox";
 import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { downloadImage } from "@/lib/download-image";
-import type { DragEvent, ReactNode } from "react";
+import type { DragEvent, ReactNode, RefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type StudioMode = "genesis" | "detail";
 type DetailMode = "connected" | "separate";
 type StudioPhase = "idle" | "planning" | "preview" | "complete";
 type GenesisEdition = "smart" | "professional";
 type ModuleOption = [string, string, string];
+type GuideTargetRef = RefObject<HTMLDivElement | null>;
+type GuideStep = {
+  title: string;
+  description: string;
+  targetRef: GuideTargetRef;
+};
 type ApiResponse<T> = {
   code: number;
   message: string;
@@ -340,6 +348,13 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const detailResolutionOptions = useMemo(() => configuredResolutions(detailConfigs, detailModel), [detailModel, detailConfigs]);
   const activeGenesisResolution = genesisResolutionOptions.includes(genesisResolution) ? genesisResolution : genesisResolutionOptions[0] || "标清 1K";
   const activeDetailResolution = detailResolutionOptions.includes(detailResolution) ? detailResolution : detailResolutionOptions[0] || "标清 1K";
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideStep, setGuideStep] = useState(0);
+  const uploadGuideRef = useRef<HTMLDivElement | null>(null);
+  const promptGuideRef = useRef<HTMLDivElement | null>(null);
+  const settingsGuideRef = useRef<HTMLDivElement | null>(null);
+  const modulesGuideRef = useRef<HTMLDivElement | null>(null);
+  const actionGuideRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -397,6 +412,64 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
   const canFillGenesis = genesisUploads.length > 0 && brief.trim().length > 0 && (genesisEdition === "smart" || genesisModules.length > 0);
   const canFillDetail = detailUploads.length > 0 && detailProductDescription.trim().length > 0 && (detailEdition === "smart" || detailSelectedModules.length > 0);
   const insufficientCredits = (mode === "genesis" ? canFillGenesis : canFillDetail) && hasCreditSnapshot && activeCost > Number(user?.credits || 0);
+  const activeEdition = mode === "genesis" ? genesisEdition : detailEdition;
+  const guideProductName = mode === "genesis" ? "主图" : "详情图";
+  const guideSteps = useMemo<GuideStep[]>(() => {
+    const steps: GuideStep[] = [
+      {
+        title: "1. 上传产品素材",
+        description: "支持上传同一款商品的多视角图片，例如正面、侧面、背面和细节图，方便 AI 识别产品结构。",
+        targetRef: uploadGuideRef
+      },
+      {
+        title: mode === "genesis" ? "2. 填写设计简报" : "2. 填写核心卖点",
+        description: "描述产品名称、核心卖点和具体参数。",
+        targetRef: promptGuideRef
+      },
+      {
+        title: "3. 设置出图参数",
+        description:
+          activeEdition === "professional"
+            ? "在这里统一设置输出语言、视觉风格、模型、图片比例和分辨率，先定好全局参数，再去挑选出图模块会更高效。"
+            : "在这里统一设置输出语言、出图数量、模型、图片比例和分辨率，先定好全局参数，再开始生成会更高效。",
+        targetRef: settingsGuideRef
+      }
+    ];
+
+    if (activeEdition === "professional") {
+      steps.push({
+        title: `4. 设置${guideProductName}模块`,
+        description: `按需勾选首屏主视觉、卖点图、细节图、尺寸图等模块，AI 会围绕这些模块输出方案。`,
+        targetRef: modulesGuideRef
+      });
+    }
+
+    steps.push({
+      title: `${steps.length + 1}. 生成${guideProductName}`,
+      description: `点击生成${guideProductName}，稍等几分钟，AI 会自动分析并生成${guideProductName}。`,
+      targetRef: actionGuideRef
+    });
+
+    return steps;
+  }, [activeEdition, guideProductName, mode]);
+
+  function startGuide() {
+    setGuideStep(0);
+    setGuideOpen(true);
+  }
+
+  useEffect(() => {
+    setGuideStep(0);
+    setGuideOpen(false);
+    const key = `xinglu_studio_guide_seen_${mode}`;
+    if (window.localStorage.getItem(key)) return;
+    window.localStorage.setItem(key, "1");
+    const timer = window.setTimeout(() => {
+      setGuideStep(0);
+      setGuideOpen(true);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [mode]);
 
   useEffect(() => {
     if (!token) return;
@@ -606,6 +679,17 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
             <p className="mx-auto mt-4 max-w-[680px] text-base leading-8 text-[#697080]">{pageCopy.subtitle}</p>
           </div>
 
+          <div className="mt-12 flex justify-center sm:mt-16">
+            <button
+              type="button"
+              className="inline-flex h-9 items-center gap-2 rounded-full border border-[#ded8cd] bg-white px-4 text-sm font-bold text-[#101827] shadow-[0_10px_24px_-18px_rgba(16,24,39,0.55)] transition hover:-translate-y-px hover:border-[#101827]/40"
+              onClick={startGuide}
+            >
+              <HelpCircle className="h-4 w-4" />
+              查看新手指引
+            </button>
+          </div>
+
           {mode === "genesis" ? (
             <GenesisEditionSwitch value={genesisEdition} onChange={setGenesisEdition} />
           ) : (
@@ -619,39 +703,47 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
 
           <div className="mt-12 grid gap-6 lg:grid-cols-[minmax(0,0.98fr)_minmax(420px,0.86fr)] lg:items-start">
             <div className="space-y-6">
-              <UploadCard
-                title="产品素材"
-                subtitle={mode === "genesis" ? "上传不同角度产品图或细节图效果更佳。" : "上传多视角、画面清晰的产品白底图，展示效果更佳"}
-                items={activeUploads}
-                setItems={mode === "genesis" ? setGenesisUploads : setDetailUploads}
-                token={token || ""}
-              />
+              <div ref={uploadGuideRef}>
+                <UploadCard
+                  title="产品素材"
+                  subtitle={mode === "genesis" ? "上传不同角度产品图或细节图效果更佳。" : "上传多视角、画面清晰的产品白底图，展示效果更佳"}
+                  items={activeUploads}
+                  setItems={mode === "genesis" ? setGenesisUploads : setDetailUploads}
+                  token={token || ""}
+                />
+              </div>
 
               {mode === "genesis" ? (
                 <>
-                  <GenesisInputs brief={brief} setBrief={setBrief} />
-                  <SettingsPanel
-                    mode={mode}
-                    genesisEdition={genesisEdition}
-                    language={genesisLanguage}
-                    setLanguage={setGenesisLanguage}
-                    quantity={genesisQuantity}
-                    setQuantity={setGenesisQuantity}
-                    visualStyle={genesisVisualStyle}
-                    setVisualStyle={setGenesisVisualStyle}
-                    model={genesisModel}
-                    setModel={changeGenesisModel}
-                    modelOptions={genesisModelOptions}
-                    ratio={genesisRatio}
-                    setRatio={setGenesisRatio}
-                    resolution={activeGenesisResolution}
-                    setResolution={setGenesisResolution}
-                    resolutionOptions={genesisResolutionOptions}
-                  />
+                  <div ref={promptGuideRef}>
+                    <GenesisInputs brief={brief} setBrief={setBrief} />
+                  </div>
+                  <div ref={settingsGuideRef}>
+                    <SettingsPanel
+                      mode={mode}
+                      genesisEdition={genesisEdition}
+                      language={genesisLanguage}
+                      setLanguage={setGenesisLanguage}
+                      quantity={genesisQuantity}
+                      setQuantity={setGenesisQuantity}
+                      visualStyle={genesisVisualStyle}
+                      setVisualStyle={setGenesisVisualStyle}
+                      model={genesisModel}
+                      setModel={changeGenesisModel}
+                      modelOptions={genesisModelOptions}
+                      ratio={genesisRatio}
+                      setRatio={setGenesisRatio}
+                      resolution={activeGenesisResolution}
+                      setResolution={setGenesisResolution}
+                      resolutionOptions={genesisResolutionOptions}
+                    />
+                  </div>
                 </>
               ) : (
                 <DetailInputs
                   detailEdition={detailEdition}
+                  promptGuideRef={promptGuideRef}
+                  settingsGuideRef={settingsGuideRef}
                   productDescription={detailProductDescription}
                   setProductDescription={setDetailProductDescription}
                   language={detailLanguage}
@@ -672,35 +764,41 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
               )}
 
               {mode === "genesis" && genesisEdition === "professional" && (
-                <GenesisModuleSelector selected={genesisModules} onChange={setGenesisModules} />
+                <div ref={modulesGuideRef}>
+                  <GenesisModuleSelector selected={genesisModules} onChange={setGenesisModules} />
+                </div>
               )}
               {mode === "detail" && detailEdition === "professional" && (
-                <GenesisModuleSelector
-                  title="详情页模块（多选）"
-                  subtitle="每个模块对应生成 1 张详情图。"
-                  options={detailModules}
-                  selected={detailSelectedModules}
-                  onChange={setDetailSelectedModules}
-                />
+                <div ref={modulesGuideRef}>
+                  <GenesisModuleSelector
+                    title="详情页模块（多选）"
+                    subtitle="每个模块对应生成 1 张详情图。"
+                    options={detailModules}
+                    selected={detailSelectedModules}
+                    onChange={setDetailSelectedModules}
+                  />
+                </div>
               )}
 
-              <ActionPanel
-                mode={mode}
-                detailMode={detailMode}
-                isGenerating={isGenerating}
-                canGenerate={mode === "genesis" ? canFillGenesis : canFillDetail}
-                costCredits={activeCost}
-                insufficientCredits={insufficientCredits}
-                errorMessage={mode === "genesis" ? mainError : detailError}
-                disabledMessage={
-                  mode === "genesis" && genesisEdition === "professional" && genesisUploads.length > 0 && brief.trim().length > 0 && genesisModules.length === 0
-                    ? "请至少选择 1 个主图模块"
-                    : mode === "detail" && detailEdition === "professional" && detailUploads.length > 0 && detailProductDescription.trim().length > 0 && detailSelectedModules.length === 0
-                      ? "请至少选择 1 个详情页模块"
-                      : undefined
-                }
-                onGenerate={generate}
-              />
+              <div ref={actionGuideRef}>
+                <ActionPanel
+                  mode={mode}
+                  detailMode={detailMode}
+                  isGenerating={isGenerating}
+                  canGenerate={mode === "genesis" ? canFillGenesis : canFillDetail}
+                  costCredits={activeCost}
+                  insufficientCredits={insufficientCredits}
+                  errorMessage={mode === "genesis" ? mainError : detailError}
+                  disabledMessage={
+                    mode === "genesis" && genesisEdition === "professional" && genesisUploads.length > 0 && brief.trim().length > 0 && genesisModules.length === 0
+                      ? "请至少选择 1 个主图模块"
+                      : mode === "detail" && detailEdition === "professional" && detailUploads.length > 0 && detailProductDescription.trim().length > 0 && detailSelectedModules.length === 0
+                        ? "请至少选择 1 个详情页模块"
+                        : undefined
+                  }
+                  onGenerate={generate}
+                />
+              </div>
             </div>
 
             <ResultPanel
@@ -722,6 +820,13 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
           </div>
         </section>
       </main>
+      <StudioGuideOverlay
+        open={guideOpen}
+        steps={guideSteps}
+        stepIndex={guideStep}
+        onStepChange={setGuideStep}
+        onClose={() => setGuideOpen(false)}
+      />
     </div>
   );
 }
@@ -741,6 +846,161 @@ function AppHeader({ activeMode, onModeChange }: { activeMode: StudioMode; onMod
         </div>
       </div>
     </header>
+  );
+}
+
+function StudioGuideOverlay({
+  open,
+  steps,
+  stepIndex,
+  onStepChange,
+  onClose
+}: {
+  open: boolean;
+  steps: GuideStep[];
+  stepIndex: number;
+  onStepChange: (index: number) => void;
+  onClose: () => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const [viewport, setViewport] = useState({ width: 1280, height: 800 });
+  const currentStep = steps[Math.min(stepIndex, Math.max(steps.length - 1, 0))];
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open || !currentStep) return;
+
+    const target = currentStep.targetRef.current;
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+
+    function updatePosition() {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+      setRect(currentStep.targetRef.current?.getBoundingClientRect() || null);
+    }
+
+    const frame = window.requestAnimationFrame(updatePosition);
+    const timer = window.setTimeout(updatePosition, 360);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [currentStep, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose, open]);
+
+  if (!mounted || !open || !currentStep) return null;
+
+  const padding = 8;
+  const highlight = rect
+    ? {
+        top: Math.max(8, rect.top - padding),
+        left: Math.max(8, rect.left - padding),
+        width: Math.min(viewport.width - 16, rect.width + padding * 2),
+        height: rect.height + padding * 2
+      }
+    : {
+        top: Math.round(viewport.height * 0.25),
+        left: Math.round(viewport.width * 0.15),
+        width: Math.round(viewport.width * 0.7),
+        height: 120
+      };
+  const tooltipWidth = Math.min(560, viewport.width - 32);
+  const preferredTop = highlight.top + highlight.height + 18;
+  const tooltipTop = preferredTop + 190 > viewport.height ? Math.max(16, highlight.top - 196) : preferredTop;
+  const tooltipLeft = Math.min(Math.max(16, highlight.left + highlight.width / 2 - tooltipWidth / 2), viewport.width - tooltipWidth - 16);
+  const arrowLeft = Math.min(Math.max(22, highlight.left + highlight.width / 2 - tooltipLeft - 8), tooltipWidth - 34);
+  const isFirst = stepIndex === 0;
+  const isLast = stepIndex >= steps.length - 1;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] pointer-events-none">
+      <div className="absolute inset-0 pointer-events-auto" />
+      <div
+        className="absolute rounded-[14px] ring-4 ring-white"
+        style={{
+          top: highlight.top,
+          left: highlight.left,
+          width: highlight.width,
+          height: highlight.height,
+          boxShadow: "0 0 0 9999px rgba(0,0,0,0.52), 0 14px 40px rgba(0,0,0,0.25)"
+        }}
+      />
+      <div
+        className="pointer-events-auto absolute rounded-xl bg-white p-4 text-[#101827] shadow-[0_18px_45px_rgba(16,24,39,0.28)] sm:p-5"
+        style={{ top: tooltipTop, left: tooltipLeft, width: tooltipWidth }}
+      >
+        <span
+          className="absolute -top-2 h-4 w-4 rotate-45 rounded-[2px] bg-white"
+          style={{ left: arrowLeft }}
+        />
+        <button
+          aria-label="关闭新手指引"
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-[#8a919e] transition hover:bg-[#f2f0eb] hover:text-[#101827]"
+          type="button"
+          onClick={onClose}
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <div className="pr-10">
+          <h3 className="text-lg font-semibold text-[#101827]">{currentStep.title}</h3>
+          <p className="mt-4 text-[15px] leading-7 text-[#343b47]">{currentStep.description}</p>
+        </div>
+        <div className="mt-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            {steps.map((step, index) => (
+              <span
+                key={step.title}
+                className={`h-1.5 rounded-full transition-all ${index === stepIndex ? "w-3 bg-[#6aa600]" : "w-1.5 bg-[#e3e0d9]"}`}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            {!isFirst && (
+              <button
+                className="h-9 rounded-md border border-[#ded8cd] bg-white px-4 text-sm font-semibold text-[#697080] transition hover:border-[#bfb6aa] hover:text-[#101827]"
+                type="button"
+                onClick={() => onStepChange(Math.max(0, stepIndex - 1))}
+              >
+                上一步
+              </button>
+            )}
+            <button
+              className="h-9 rounded-md bg-[#6aa600] px-5 text-sm font-bold text-white transition hover:bg-[#5b9200]"
+              type="button"
+              onClick={() => {
+                if (isLast) {
+                  onClose();
+                  return;
+                }
+                onStepChange(Math.min(steps.length - 1, stepIndex + 1));
+              }}
+            >
+              {isLast ? "结束导览" : "下一步"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -786,7 +1046,7 @@ function GenesisEditionSwitch({
   professionalDescription?: string;
 }) {
   return (
-    <div className="mx-auto mt-12 flex flex-col items-center gap-3 sm:mt-16">
+    <div className="mx-auto mt-3 flex flex-col items-center gap-3">
       <div className="inline-flex rounded-full border border-[#e5ded2] bg-white p-1 shadow-[0_10px_30px_-24px_rgba(16,24,39,0.45)]">
         {[
           ["smart", "智能版"],
@@ -1015,6 +1275,8 @@ function TextCard({ icon, title, subtitle, value, setValue, placeholder }: { ico
 
 function DetailInputs({
   detailEdition,
+  promptGuideRef,
+  settingsGuideRef,
   productDescription,
   setProductDescription,
   language,
@@ -1033,6 +1295,8 @@ function DetailInputs({
   resolutionOptions
 }: {
   detailEdition: GenesisEdition;
+  promptGuideRef?: GuideTargetRef;
+  settingsGuideRef?: GuideTargetRef;
   productDescription: string;
   setProductDescription: (value: string) => void;
   language: string;
@@ -1062,14 +1326,14 @@ function DetailInputs({
             <p className="mt-1 text-sm text-[#697080]">填写核心卖点，AI 会按这些内容生成详情图。</p>
           </div>
         </div>
-        <div className="mt-6 space-y-5">
+        <div ref={promptGuideRef} className="mt-6 space-y-5">
           <label className="block">
             <span className="mb-2 block text-sm font-semibold text-[#566070]">核心卖点</span>
             <textarea className="studio-input h-40 resize-none py-4 leading-6" maxLength={500} placeholder={"建议包含以下信息生成更精准:  \n1.产品名称\n2.核心卖点\n3.适用人群\n4.期望场景\n5.具体参数"} value={productDescription} onChange={(event) => setProductDescription(event.target.value)} />
           </label>
         </div>
 
-        <div className="mt-6 border-t border-[#ebe5da] pt-6">
+        <div ref={settingsGuideRef} className="mt-6 border-t border-[#ebe5da] pt-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="输出语言"><SelectLike value={language} onChange={setLanguage} options={languageOptions} /></Field>
             {detailEdition === "smart" && <Field label="生成数量"><SelectLike value={quantity} onChange={setQuantity} options={quantityOptions} /></Field>}
