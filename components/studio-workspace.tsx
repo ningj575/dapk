@@ -681,13 +681,13 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
             <p className="mx-auto mt-4 max-w-[680px] text-base leading-8 text-[#697080]">{pageCopy.subtitle}</p>
           </div>
 
-          <div className="mt-12 flex justify-center sm:mt-16">
+          <div className="mt-7 flex justify-center sm:mt-9">
             <button
               type="button"
-              className="inline-flex h-9 items-center gap-2 rounded-full border border-[#ded8cd] bg-white px-4 text-sm font-bold text-[#101827] shadow-[0_10px_24px_-18px_rgba(16,24,39,0.55)] transition hover:-translate-y-px hover:border-[#101827]/40"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#ded8cd] bg-white px-3 text-xs font-semibold text-[#7b8391] shadow-[0_8px_20px_-18px_rgba(16,24,39,0.5)] transition hover:-translate-y-px hover:border-[#bfb6aa] hover:text-[#101827]"
               onClick={startGuide}
             >
-              <HelpCircle className="h-4 w-4" />
+              <HelpCircle className="h-3.5 w-3.5" />
               查看新手指引
             </button>
           </div>
