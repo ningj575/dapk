@@ -110,14 +110,16 @@ const languageOptions = [
 const quantityOptions = Array.from({ length: 10 }, (_, index) => `${index + 1} 张`);
 const visualStyleOptions = ["简约清新风", "高级质感风", "活泼吸睛风", "复古怀旧风", "场景写实风", "科技未来风", "国风古韵风"];
 const genesisModuleOptions: ModuleOption[] = [
-  ["hero_kv", "首屏 KV", "建立第一眼识别"],
-  ["overall_display", "整体展示", "完整形态与高级氛围"],
-  ["detail_closeup", "细节特写", "放大材质与工艺"],
-  ["usage_scene", "使用场景", "呈现真实使用状态"],
+  ["hero_kv", "首屏视觉图", "首屏吸睛，提升点击转化"],
+  ["core_selling_point", "核心卖点图", "一句话卖点+图形强化"],
+  ["detail_closeup", "细节特写", "放大细节，展示质感工艺"],
+  ["usage_scene", "场景图", "真实使用场景带入感"],
   ["multi_color", "多色套装", "展示多 SKU 与组合美感"],
-  ["feature_compare", "功能对比", "参数、功效与差异说明"],
-  ["package_display", "包装展示", "礼盒、配件与开箱细节"],
-  ["trust_guarantee", "权益保障", "售后、质保与信任背书"]
+  ["feature_compare", "使用对比图", "使用前后/竞品对比更直观"],
+  ["package_display", "包装展示图", "尺寸参数一图看懂"],
+  ["product_spokesperson", "产品代言互动", "人物代言+互动引导购买"],
+  ["buyer_show", "通用买家秀", "真实感买家秀氛围图"],
+  ["campaign_poster", "活动海报", "促销信息海报，用于投放"]
 ] as const;
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 const homeDraftKey = "dake_home_generation_draft";
