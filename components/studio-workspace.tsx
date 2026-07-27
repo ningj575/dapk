@@ -43,6 +43,7 @@ type GuideStep = {
   title: string;
   description: string;
   targetRef: GuideTargetRef;
+  popoverPlacement?: "auto" | "viewport-bottom";
 };
 type ApiResponse<T> = {
   code: number;
@@ -440,7 +441,8 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
       steps.push({
         title: `4. 设置${guideProductName}模块`,
         description: `按需勾选首屏主视觉、卖点图、细节图、尺寸图等模块，AI 会围绕这些模块输出方案。`,
-        targetRef: modulesGuideRef
+        targetRef: modulesGuideRef,
+        popoverPlacement: "viewport-bottom"
       });
     }
 
@@ -911,12 +913,16 @@ function StudioGuideOverlay({
 
   const padding = 8;
   const highlight = rect
-    ? {
-        top: Math.max(8, rect.top - padding),
-        left: Math.max(8, rect.left - padding),
-        width: Math.min(viewport.width - 16, rect.width + padding * 2),
-        height: rect.height + padding * 2
-      }
+    ? (() => {
+        const top = Math.max(8, rect.top - padding);
+        const bottom = Math.min(viewport.height - 8, rect.bottom + padding);
+        return {
+          top,
+          left: Math.max(8, rect.left - padding),
+          width: Math.min(viewport.width - 16, rect.width + padding * 2),
+          height: Math.max(72, bottom - top)
+        };
+      })()
     : {
         top: Math.round(viewport.height * 0.25),
         left: Math.round(viewport.width * 0.15),
@@ -925,9 +931,16 @@ function StudioGuideOverlay({
       };
   const tooltipWidth = Math.min(560, viewport.width - 32);
   const preferredTop = highlight.top + highlight.height + 18;
-  const tooltipTop = preferredTop + 190 > viewport.height ? Math.max(16, highlight.top - 196) : preferredTop;
+  const tooltipEstimatedHeight = 190;
+  const tooltipTop =
+    currentStep.popoverPlacement === "viewport-bottom"
+      ? Math.max(16, viewport.height - tooltipEstimatedHeight - 24)
+      : preferredTop + tooltipEstimatedHeight > viewport.height
+        ? Math.max(16, highlight.top - tooltipEstimatedHeight - 12)
+        : preferredTop;
   const tooltipLeft = Math.min(Math.max(16, highlight.left + highlight.width / 2 - tooltipWidth / 2), viewport.width - tooltipWidth - 16);
   const arrowLeft = Math.min(Math.max(22, highlight.left + highlight.width / 2 - tooltipLeft - 8), tooltipWidth - 34);
+  const arrowPointsDown = tooltipTop + tooltipEstimatedHeight <= highlight.top + 8;
   const isFirst = stepIndex === 0;
   const isLast = stepIndex >= steps.length - 1;
 
@@ -949,7 +962,7 @@ function StudioGuideOverlay({
         style={{ top: tooltipTop, left: tooltipLeft, width: tooltipWidth }}
       >
         <span
-          className="absolute -top-2 h-4 w-4 rotate-45 rounded-[2px] bg-white"
+          className={`absolute h-4 w-4 rotate-45 rounded-[2px] bg-white ${arrowPointsDown ? "-bottom-2" : "-top-2"}`}
           style={{ left: arrowLeft }}
         />
         <button
