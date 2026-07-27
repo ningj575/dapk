@@ -777,12 +777,12 @@ function ModeEditor({
       {mode === "video-rep-4" && <VideoReplicationForm productItems={repProductAssets} onProductChange={setRepProductAssets} videoItems={repVideoAssets} onVideoChange={setRepVideoAssets} />}
 
       {mode === "one-click-2" && (
-        <textarea className="studio-input min-h-[62px] resize-none py-4 leading-6" maxLength={500} placeholder={videoPromptPlaceholder(mode)} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
+        <textarea className="studio-input min-h-[124px] resize-none py-4 leading-6" maxLength={500} placeholder={videoPromptPlaceholder(mode)} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
       )}
       {mode !== "one-click-2" && (
         <label className="block">
           <span className="mb-2 block text-xs font-bold text-[#7d8492]">提示词</span>
-          <textarea className="studio-input min-h-[96px] resize-none py-4 leading-6" maxLength={500} placeholder={videoPromptPlaceholder(mode)} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
+          <textarea className={`studio-input ${mode === "first-last-2" ? "min-h-[192px]" : "min-h-[96px]"} resize-none py-4 leading-6`} maxLength={500} placeholder={videoPromptPlaceholder(mode)} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
         </label>
       )}
 

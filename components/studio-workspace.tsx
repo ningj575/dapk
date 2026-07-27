@@ -521,7 +521,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
     const maxAttempts = 180;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       if (attempt > 0) {
-        await new Promise((resolve) => window.setTimeout(resolve, 3000));
+        await new Promise((resolve) => window.setTimeout(resolve, 5000));
       }
       const response = await fetch(`${apiBase}/api/image-task-status?id=${recordId}`, {
         headers: { Authorization: `Bearer ${token}` }
