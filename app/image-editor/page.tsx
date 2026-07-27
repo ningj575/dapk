@@ -6,7 +6,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken } from "@/components/auth-state";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { downloadImage } from "@/lib/download-image";
-import { AlertTriangle, Check, ChevronDown, Copy, CornerDownLeft, Download, Loader2, Plus, RefreshCw, Send, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Copy, CornerDownLeft, Download, Loader2, Pencil, Plus, RefreshCw, Send, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import type { ClipboardEvent, DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -353,6 +353,7 @@ function UniversalImageContent() {
   const [uploadingImages, setUploadingImages] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState("");
+  const [creditError, setCreditError] = useState(false);
   const [previewByMessage, setPreviewByMessage] = useState<Record<number, number>>({});
   const [lightboxPreview, setLightboxPreview] = useState<{ images: string[]; index: number; prefix: string } | null>(null);
   const [modelConfigs, setModelConfigs] = useState<ModelConfig[]>([]);
@@ -464,6 +465,7 @@ function UniversalImageContent() {
     try {
       const uploaded = await Promise.all(selected.map((file) => uploadReferenceImage(file, token)));
       const nextItems = uploaded.flat();
+      setCreditError(false);
       setUploadItems((items) => [...items, ...nextItems]);
     } catch (event) {
       setError(event instanceof Error ? event.message : "图片上传失败");
@@ -564,31 +566,15 @@ function UniversalImageContent() {
   }
 
   async function submitGeneration(request: GenerationRequest) {
-    if (!request.prompt || generating || !token) return;
+    if (!request.prompt || request.images.length === 0 || generating || !token) return false;
 
     setGenerating(true);
     setError("");
+    setCreditError(false);
     const startedAt = Date.now();
     const messageId = Date.now();
     const loadingMessageId = messageId + 1;
-    const userMessage: Message = {
-      id: messageId,
-      conversationId: messageId,
-      role: "user",
-      text: request.prompt,
-      images: request.images,
-      request
-    };
-    const loadingMessage: Message = {
-      id: loadingMessageId,
-      conversationId: messageId,
-      role: "assistant",
-      text: "",
-      aspectRatio: request.aspectRatio,
-      retryRequest: request,
-      status: "loading"
-    };
-    setMessages((items) => [...items, userMessage, loadingMessage]);
+    let messageCreated = false;
 
     try {
       const response = await fetch(`${apiBase}/api/universal-image`, {
@@ -615,22 +601,32 @@ function UniversalImageContent() {
       if (!result.data.id) {
         throw new Error("生成任务创建失败");
       }
-      setMessages((items) =>
-        items.map((message) =>
-          message.conversationId === messageId
-            ? {
-                ...message,
-                conversationId: result.data.id,
-                recordId: result.data.id
-              }
-            : message
-        )
-      );
+      const userMessage: Message = {
+        id: messageId,
+        conversationId: result.data.id,
+        recordId: result.data.id,
+        role: "user",
+        text: request.prompt,
+        images: request.images,
+        request
+      };
+      const loadingMessage: Message = {
+        id: loadingMessageId,
+        conversationId: result.data.id,
+        recordId: result.data.id,
+        role: "assistant",
+        text: "",
+        aspectRatio: request.aspectRatio,
+        retryRequest: request,
+        status: "loading"
+      };
+      messageCreated = true;
+      setMessages((items) => [...items, userMessage, loadingMessage]);
 
       const immediateImages = (result.data.images || []).map(mediaUrl);
       if (immediateImages.length === 0 || result.data.done === false || result.data.status === "processing") {
         await pollUniversalImage(result.data.id, loadingMessageId, startedAt);
-        return;
+        return true;
       }
 
       const elapsedSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
@@ -646,7 +642,18 @@ function UniversalImageContent() {
             : message
         )
       );
+      return true;
     } catch (event) {
+      const message = event instanceof Error ? event.message : "生成失败";
+      if (!messageCreated) {
+        if (message.includes("积分不足")) {
+          setCreditError(true);
+          setError("");
+        } else {
+          setError(message);
+        }
+        return false;
+      }
       setMessages((items) =>
         items.map((message) =>
           message.id === loadingMessageId
@@ -659,6 +666,7 @@ function UniversalImageContent() {
             : message
         )
       );
+      return true;
     } finally {
       setGenerating(false);
     }
@@ -666,7 +674,7 @@ function UniversalImageContent() {
 
   async function generate() {
     const cleanPrompt = prompt.trim();
-    if (!cleanPrompt || generating || !token) return;
+    if (!cleanPrompt || uploadItems.length === 0 || generating || !token) return;
     const request: GenerationRequest = {
       prompt: cleanPrompt,
       model,
@@ -677,7 +685,17 @@ function UniversalImageContent() {
     setPrompt("");
     setUploadItems([]);
     if (inputRef.current) inputRef.current.value = "";
-    await submitGeneration(request);
+    const created = await submitGeneration(request);
+    if (!created) {
+      setPrompt(request.prompt);
+      setUploadItems(request.images.map((src, index) => ({ id: `restored-${Date.now()}-${index}`, src })));
+    }
+  }
+
+  function editResultImage(src: string) {
+    if (!src) return;
+    setUploadItems((items) => [{ id: `result-edit-${Date.now()}`, src }, ...items.filter((item) => item.src !== src)].slice(0, 10));
+    window.setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 0);
   }
 
   async function hideConversation(conversationId: number, recordId?: number) {
@@ -784,6 +802,7 @@ function UniversalImageContent() {
                     selectedIndex={previewByMessage[message.id] || 0}
                     onSelect={(index) => setPreviewByMessage((current) => ({ ...current, [message.id]: index }))}
                     onPreview={(index) => setLightboxPreview({ images: message.images || [], index, prefix: `xinglu-universal-${message.id}` })}
+                    onEditImage={editResultImage}
                     onRetry={(request) => void submitGeneration(request)}
                   />
                 )}
@@ -809,6 +828,14 @@ function UniversalImageContent() {
           }}
           onDrop={onInputDrop}
         >
+          {creditError && (
+            <div className="mx-4 mt-3 rounded-[12px] border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-600">
+              积分不足
+              <Link className="ml-3 underline underline-offset-4" href="/pricing">
+                购买积分
+              </Link>
+            </div>
+          )}
           {error && <div className="mx-4 mt-3 rounded-[10px] bg-red-50 px-3 py-2 text-xs font-bold text-red-600">{error}</div>}
           <div className="relative min-h-[108px] px-4 pt-3">
             <input ref={inputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => void onFilesChange(event.target.files)} />
@@ -841,8 +868,11 @@ function UniversalImageContent() {
               data-testid="universal-prompt"
               className="min-h-[86px] w-full resize-none border-0 bg-transparent px-0 pb-3 pt-4 text-base font-normal leading-7 text-[#0d0d0d] outline-none placeholder:text-[#9aa1ad]"
               value={prompt}
-              placeholder="输入提示词，例如：把这张陶瓷杯生成高级电商主图，白色背景，柔和光影，突出釉面质感..."
-              onChange={(event) => setPrompt(event.target.value)}
+              placeholder="输入提示词，一次生成一张图，例如：把这张陶瓷杯生成高级电商主图，白色背景，柔和光影，突出釉面质感..."
+              onChange={(event) => {
+                setPrompt(event.target.value);
+                setCreditError(false);
+              }}
               onPaste={onInputPaste}
             />
           </div>
@@ -857,11 +887,11 @@ function UniversalImageContent() {
               type="button"
               data-testid="universal-generate"
               className={`ml-auto inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-extrabold transition disabled:cursor-not-allowed sm:h-10 sm:gap-2 sm:px-5 sm:text-sm ${
-                prompt.trim() && !generating && !uploadingImages
+                prompt.trim() && uploadItems.length > 0 && !generating && !uploadingImages
                   ? "bg-[#101827] text-white shadow-[0_12px_28px_-20px_rgba(16,24,39,0.85)] hover:bg-[#2b3344]"
                   : "bg-[#ebe9e5] text-[#596170] opacity-80"
               }`}
-              disabled={!prompt.trim() || generating || uploadingImages}
+              disabled={!prompt.trim() || uploadItems.length === 0 || generating || uploadingImages}
               onClick={() => void generate()}
             >
               {generating || uploadingImages ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -986,12 +1016,14 @@ function AssistantMessageContent({
   selectedIndex,
   onSelect,
   onPreview,
+  onEditImage,
   onRetry
 }: {
   message: Message;
   selectedIndex: number;
   onSelect: (index: number) => void;
   onPreview: (index: number) => void;
+  onEditImage: (src: string) => void;
   onRetry: (request: GenerationRequest) => void;
 }) {
   if (message.status === "loading") {
@@ -1011,8 +1043,10 @@ function AssistantMessageContent({
     return null;
   }
 
+  const activeImage = message.images[Math.min(selectedIndex, message.images.length - 1)] || message.images[0];
+
   return (
-    <div className="max-w-[560px]">
+    <div className="group relative max-w-[560px] pb-10">
       {message.elapsedSeconds ? (
         <p className="mb-3 text-base font-normal text-[#0d0d0d]">{formatElapsed(message.elapsedSeconds)}</p>
       ) : null}
@@ -1025,6 +1059,15 @@ function AssistantMessageContent({
         onSelect={onSelect}
         onOpen={onPreview}
       />
+      <button
+        type="button"
+        className="absolute bottom-0 right-0 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#f1f0ee] text-[#7a808c] shadow-sm transition hover:bg-[#101827] hover:text-white"
+        onClick={() => onEditImage(activeImage)}
+        aria-label="编辑此图"
+        title="编辑"
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
     </div>
   );
 }
