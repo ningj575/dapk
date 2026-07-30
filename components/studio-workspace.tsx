@@ -614,7 +614,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
         setGenesisPhase("complete");
       } catch (event) {
         setMainError("生成失败");
-        setGenesisPhase(mainTasks.length > 0 || mainImages.length > 0 ? "complete" : "idle");
+        setGenesisPhase("complete");
       }
       return;
     }
@@ -661,7 +661,7 @@ export function StudioWorkspace({ initialMode }: { initialMode: StudioMode }) {
       setDetailPhase("complete");
     } catch (event) {
       setDetailError("生成失败");
-      setDetailPhase(detailTasks.length > 0 || detailImages.length > 0 ? "complete" : "idle");
+      setDetailPhase("complete");
     }
   }
 
