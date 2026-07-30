@@ -495,17 +495,76 @@ function UniversalImageContent() {
     }
   }
 
+  async function syncUniversalRecordFallback(recordId: number, loadingMessageId: number, startedAt: number) {
+    const response = await fetch(`${apiBase}/api/generations?type=universal_image&limit=50`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await readApi<{ records: GenerationRecord[] }>(response);
+    const record = (result.data.records || []).find((item) => Number(item.id) === Number(recordId));
+    if (!record) return false;
+
+    const images = String(record.media_url || record.image_url || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map(mediaUrl);
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+
+    if (String(record.status || "").toLowerCase() === "failed") {
+      setMessages((items) =>
+        items.map((message) =>
+          message.id === loadingMessageId
+            ? {
+                ...message,
+                images: [],
+                status: "failed",
+                elapsedSeconds
+              }
+            : message
+        )
+      );
+      return true;
+    }
+
+    if (images.length > 0) {
+      setMessages((items) =>
+        items.map((message) =>
+          message.id === loadingMessageId
+            ? {
+                ...message,
+                images,
+                status: "done",
+                elapsedSeconds
+              }
+            : message
+        )
+      );
+      return true;
+    }
+
+    return false;
+  }
+
   async function pollUniversalImage(recordId: number, loadingMessageId: number, startedAt: number) {
     const maxAttempts = 180;
+    let checkedFallbackAfterFiveMinutes = false;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       if (attempt > 0) {
         await new Promise((resolve) => window.setTimeout(resolve, 3000));
       }
 
-      const response = await fetch(`${apiBase}/api/image-task-status?id=${recordId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const result = await readApi<ImageTaskStatusPayload>(response);
+      let result: ApiResponse<ImageTaskStatusPayload>;
+      try {
+        const response = await fetch(`${apiBase}/api/image-task-status?id=${recordId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        result = await readApi<ImageTaskStatusPayload>(response);
+      } catch (event) {
+        if (await syncUniversalRecordFallback(recordId, loadingMessageId, startedAt)) {
+          return;
+        }
+        throw event;
+      }
       window.localStorage.setItem("dake_user", JSON.stringify(result.data.user));
       notifyAuthChanged();
 
@@ -543,6 +602,9 @@ function UniversalImageContent() {
 
       if (result.data.done) {
         if (images.length === 0) {
+          if (await syncUniversalRecordFallback(recordId, loadingMessageId, startedAt)) {
+            return;
+          }
           throw new Error(failed[0]?.error_message || "生成失败");
         }
         const elapsedSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
@@ -560,8 +622,18 @@ function UniversalImageContent() {
         );
         return;
       }
+
+      if (!checkedFallbackAfterFiveMinutes && Date.now() - startedAt >= 5 * 60 * 1000) {
+        checkedFallbackAfterFiveMinutes = true;
+        if (await syncUniversalRecordFallback(recordId, loadingMessageId, startedAt)) {
+          return;
+        }
+      }
     }
 
+    if (await syncUniversalRecordFallback(recordId, loadingMessageId, startedAt)) {
+      return;
+    }
     throw new Error("生成任务仍在处理中，请稍后到生成记录查看结果");
   }
 
