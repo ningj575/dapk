@@ -4,12 +4,15 @@ import { LoginDialog } from "@/components/login-dialog";
 import { useAuthToken, useClientReady } from "@/components/auth-state";
 import {
   ArrowRight,
+  Archive,
   Camera,
+  CircleDollarSign,
   Eraser,
   LayoutGrid,
   Loader2,
   Sparkles,
   WandSparkles,
+  Zap,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -94,6 +97,31 @@ const featureCards = [
     gradient: "from-violet-500 to-purple-600",
     glow: "rgba(139,92,246,0.5)",
     href: "/ecom-studio"
+  }
+];
+
+const whyChooseCards = [
+  {
+    title: "高性能稳定",
+    icon: Zap,
+    lines: ["多节点部署，全球加速访问", "自动负载均衡，峰值扩容", "实时监控，智能故障转移"],
+    stats: [
+      ["< 200ms", "平均响应时间"],
+      ["99.9%", "可用性"]
+    ]
+  },
+  {
+    title: "价格最低",
+    icon: CircleDollarSign,
+    subtitle: "低至0.02元",
+    priceLabel: "GPT Image模型",
+    price: "¥0.02"
+  },
+  {
+    title: "丰富模型",
+    icon: Archive,
+    subtitle: "主流AI模型",
+    tags: ["GPT Image", "Nano Banana", "Seedream", "Sora2"]
   }
 ];
 
@@ -456,54 +484,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative flex items-center overflow-hidden pb-16 pt-8 sm:pb-24 sm:pt-10">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_28%_18%,rgba(251,191,146,0.14),transparent),radial-gradient(ellipse_50%_45%_at_72%_28%,rgba(167,215,198,0.11),transparent),radial-gradient(ellipse_45%_40%_at_50%_82%,rgba(196,181,219,0.09),transparent)]" />
-          <div className="relative mx-auto w-full max-w-[1440px] px-5 sm:px-8">
-            <div className="flex flex-col items-center text-center">
-              <h1 className="hidden max-w-[1100px] font-display text-[clamp(3.25rem,7vw,5.5rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#101827]">
-                一键上传 高级出圈
-              </h1>
-              <p className="hidden mt-7 max-w-[580px] text-base leading-8 text-[#69707f] sm:text-lg sm:leading-9">
-                GPT Image 2 + Nano Banana 2 双引擎驱动。深耕电商主图、详情页制作，上传即出稿，省去外包开销与漫长定稿周期。
-              </p>
-
-              <div className="grid w-full max-w-[1400px] grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                {featureCards.map((card) => {
-                  const Icon = card.icon;
-                  return (
-                    <button
-                      key={card.title}
-                      className="group glass-card relative flex min-h-[250px] flex-col overflow-hidden rounded-[2rem] p-8 text-left transition-all duration-500 ease-out hover:-translate-y-1.5 hover:border-white/70 sm:min-h-[270px] lg:p-8 xl:min-h-[280px]"
-                      type="button"
-                      onClick={() => openLogin(card.href)}
-                    >
-                      <div className="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-white/20 via-white/5 to-transparent opacity-70 blur-2xl transition-opacity duration-700 group-hover:opacity-100" />
-                      <div className="pointer-events-none absolute right-10 top-12 grid grid-cols-5 gap-2 opacity-25">
-                        {Array.from({ length: 20 }).map((_, index) => (
-                          <span key={index} className="h-1.5 w-1.5 rounded-full" style={{ background: card.glow }} />
-                        ))}
-                      </div>
-                      <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px opacity-0 transition-opacity duration-500 group-hover:opacity-50" style={{ background: `linear-gradient(90deg, transparent, ${card.glow}, transparent)` }} />
-                      <div className={`relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[24px] bg-gradient-to-br ${card.gradient} text-white shadow-[0_18px_34px_-18px_rgba(16,24,39,0.65)] ring-1 ring-white/25 transition-all duration-500 group-hover:scale-105 group-hover:shadow-xl`}>
-                        <Icon className="h-10 w-10" strokeWidth={1.8} />
-                      </div>
-                      <div className="relative mt-7 flex min-h-[44px] items-center justify-between gap-4">
-                        <h3 className="whitespace-nowrap text-[1.7rem] font-extrabold leading-tight tracking-tight text-[#101827] transition-transform duration-300 group-hover:-translate-x-0.5 2xl:text-3xl">
-                          {card.title}
-                        </h3>
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#101827]/45 shadow-[0_12px_28px_-18px_rgba(16,24,39,0.7)] transition-all duration-500 group-hover:text-[#101827]">
-                          <ArrowRight className="h-5 w-5 transition-transform duration-500 group-hover:translate-x-0.5" />
-                        </span>
-                      </div>
-                      <p className="relative mt-5 whitespace-pre-line text-base leading-8 text-[#707787]">{card.desc}</p>
-                    </button>
-                  );
-                })}
-              </div>
-
-            </div>
-          </div>
-        </section>
+        <WhyChooseUsSection />
 
         {renderedShowcases.map((showcase) => (
           <Showcase key={showcase.index} {...showcase} onOpen={openLogin} />
@@ -602,6 +583,85 @@ function PlatformMarquee({ onOpen }: { onOpen: (target?: string) => void }) {
         <ArrowRight className="h-4 w-4" />
       </button>
     </div>
+  );
+}
+
+function WhyChooseUsSection() {
+  return (
+    <section className="relative overflow-hidden px-5 pb-16 pt-10 sm:px-8 sm:pb-24 sm:pt-14">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_48%_42%_at_50%_8%,rgba(239,246,255,0.82),transparent_62%)]" />
+      <div className="relative mx-auto max-w-[1280px]">
+        <div className="text-center">
+          <h2 className="font-display text-[34px] font-extrabold leading-tight tracking-[-0.025em] text-[#101827] sm:text-[46px]">
+            为什么选择我们
+          </h2>
+          <p className="mt-5 text-base font-medium text-[#6c7382] sm:text-xl">为什么选择我们？我们有什么优势？</p>
+        </div>
+
+        <div className="mt-12 grid gap-7 lg:grid-cols-3">
+          {whyChooseCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <article
+                key={card.title}
+                className="min-h-[368px] rounded-[24px] border border-[#ece8e1] bg-white px-8 py-8 text-left shadow-[0_18px_42px_-30px_rgba(16,24,39,0.35)] transition hover:-translate-y-1 hover:shadow-[0_24px_52px_-32px_rgba(16,24,39,0.42)] sm:px-9 sm:py-9"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-[#dbeafe] text-[#1d63ff]">
+                  <Icon className="h-7 w-7" strokeWidth={2.2} />
+                </div>
+                <h3 className="mt-7 text-[22px] font-extrabold tracking-[-0.015em] text-[#101827]">{card.title}</h3>
+
+                {card.lines && card.stats && (
+                  <>
+                    <div className="mt-5 space-y-4">
+                      {card.lines.map((line) => (
+                        <div key={line} className="flex items-center gap-3 text-base font-medium text-[#5f6878]">
+                          <span className="text-lg font-extrabold text-[#10b95d]">✓</span>
+                          <span>{line}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-7 border-t border-[#ece8e1] pt-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        {card.stats.map(([value, label]) => (
+                          <div key={value}>
+                            <p className="text-xl font-extrabold text-[#1d63ff]">{value}</p>
+                            <p className="mt-1 text-xs font-medium text-[#737b8c]">{label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {card.price && (
+                  <>
+                    <p className="mt-5 text-base font-medium text-[#5f6878]">{card.subtitle}</p>
+                    <div className="mt-7 rounded-[14px] bg-[#edf5ff] px-4 py-4">
+                      <p className="text-sm font-medium text-[#657082]">{card.priceLabel}</p>
+                      <p className="mt-1 text-2xl font-extrabold text-[#1d63ff]">{card.price}</p>
+                    </div>
+                  </>
+                )}
+
+                {card.tags && (
+                  <>
+                    <p className="mt-5 text-base font-medium text-[#5f6878]">{card.subtitle}</p>
+                    <div className="mt-7 flex flex-wrap gap-3">
+                      {card.tags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-[#eef1f5] px-3 py-1.5 text-xs font-bold text-[#657082]">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
   );
 }
 
