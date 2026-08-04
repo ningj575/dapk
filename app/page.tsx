@@ -104,7 +104,7 @@ const whyChooseCards = [
  {
     title: "价格全网最低",
     icon: CircleDollarSign,
-    subtitle: "生图模型低至 0.08 元 / 次，无隐藏扣费",
+    subtitle: "生图模型低至 0.08 元 / 次，无隐藏扣费，价格透明",
     priceLabel: "GPT Image2模型",
     price: "¥0.08"
   },
@@ -595,7 +595,7 @@ function WhyChooseUsSection() {
           <h2 className="font-display text-[34px] font-extrabold leading-tight tracking-[-0.025em] text-[#101827] sm:text-[46px]">
             为什么选择我们
           </h2>
-          <p className="mt-5 text-base font-medium text-[#6c7382] sm:text-xl">为什么选择我们？我们有什么优势？</p>
+          <p className="mt-5 text-base font-medium text-[#6c7382] sm:text-xl">专业 AI 模型生图平台，稳、省、全</p>
         </div>
 
         <div className="mt-12 grid gap-7 lg:grid-cols-3">
