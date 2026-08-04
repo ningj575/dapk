@@ -101,6 +101,13 @@ const featureCards = [
 ];
 
 const whyChooseCards = [
+ {
+    title: "价格全网最低",
+    icon: CircleDollarSign,
+    subtitle: "生图模型低至 0.08 元 / 次，无隐藏扣费",
+    priceLabel: "GPT Image2模型",
+    price: "¥0.08"
+  },
   {
     title: "高性能稳定",
     icon: Zap,
@@ -109,19 +116,12 @@ const whyChooseCards = [
       ["< 200ms", "平均响应时间"],
       ["99.9%", "可用性"]
     ]
-  },
-  {
-    title: "价格最低",
-    icon: CircleDollarSign,
-    subtitle: "低至0.02元",
-    priceLabel: "GPT Image模型",
-    price: "¥0.02"
-  },
+  }, 
   {
     title: "丰富模型",
     icon: Archive,
-    subtitle: "主流AI模型",
-    tags: ["GPT Image", "Nano Banana", "Seedream", "Sora2"]
+    subtitle: "聚合市面主流多模态 AI 模型",
+    tags: ["GPT Image2", "Nano Banana2","Gemini", "Veo3", "Sora2","Seedream"]
   }
 ];
 
