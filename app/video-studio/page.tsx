@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { AuthGuard } from "@/components/auth-guard";
 import { AccountMenu } from "@/components/account-menu";
+import { AnnouncementButton } from "@/components/announcement-button";
 import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { notifyAuthChanged, useAuthToken } from "@/components/auth-state";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -455,7 +456,8 @@ export default function VideoStudioPage() {
         void pollVideoResult(job.id);
       }
     } catch (event) {
-      setError(event instanceof Error ? event.message : "视频生成失败");
+      const message = event instanceof Error ? event.message : "";
+      setError(message.includes("积分不足") || message.includes("请上传") || message.includes("不可用") || message.includes("不支持") ? message : "视频生成失败，请稍后重试");
       setPhase("idle");
     }
   }
@@ -477,7 +479,7 @@ export default function VideoStudioPage() {
           }
           if (next.status === "failed") {
             setPhase("idle");
-            setError(next.error_message || "视频生成失败");
+            setError("视频生成失败，请稍后重试");
             return;
           }
         }
@@ -1091,6 +1093,7 @@ function AppHeader() {
         </Link>
         <WorkspaceNav activeHref="/video-studio" />
         <div className="-mr-4 flex items-center gap-1 sm:mr-0 sm:gap-2">
+          <AnnouncementButton />
           <AccountMenu />
           <MobileWorkspaceMenu activeHref="/video-studio" />
         </div>

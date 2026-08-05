@@ -1,6 +1,7 @@
 "use client";
 
 import { AccountMenu } from "@/components/account-menu";
+import { AnnouncementButton } from "@/components/announcement-button";
 import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { AuthGuard } from "@/components/auth-guard";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
@@ -98,6 +99,7 @@ function AppHeader() {
         </Link>
         <WorkspaceNav activeHref="/watermark-remover" />
         <div className="-mr-4 flex items-center gap-1 sm:mr-0 sm:gap-2">
+          <AnnouncementButton />
           <AccountMenu />
           <MobileWorkspaceMenu activeHref="/watermark-remover" />
         </div>

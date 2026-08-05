@@ -1,6 +1,7 @@
 "use client";
 
 import { AccountMenu } from "@/components/account-menu";
+import { AnnouncementButton } from "@/components/announcement-button";
 import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { AuthGuard } from "@/components/auth-guard";
 import { useAuthToken } from "@/components/auth-state";
@@ -52,6 +53,7 @@ function AppHeader() {
         </Link>
         <WorkspaceNav />
         <div className="-mr-4 flex items-center gap-1 sm:mr-0 sm:gap-2">
+          <AnnouncementButton />
           <AccountMenu />
           <MobileWorkspaceMenu />
         </div>

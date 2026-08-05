@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { AccountMenu } from "@/components/account-menu";
+import { AnnouncementButton } from "@/components/announcement-button";
 import { notifyAuthChanged, refreshAuthUser, type DakeUser, useAuthToken, useAuthUser } from "@/components/auth-state";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
@@ -843,6 +844,7 @@ function AppHeader({ activeMode, onModeChange }: { activeMode: StudioMode; onMod
         </Link>
         <WorkspaceNav activeHref={activeMode === "genesis" ? "/studio-genesis" : "/ecom-studio"} onModeChange={onModeChange} />
         <div className="-mr-4 flex items-center gap-1 sm:mr-0 sm:gap-2">
+          <AnnouncementButton />
           <AccountMenu />
           <MobileWorkspaceMenu activeHref={activeMode === "genesis" ? "/studio-genesis" : "/ecom-studio"} onModeChange={onModeChange} />
         </div>
