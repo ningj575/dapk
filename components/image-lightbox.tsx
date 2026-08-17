@@ -12,7 +12,7 @@ type ImageLightboxProps = {
   onClose: () => void;
 };
 
-const DEFAULT_SCALE = 0.6;
+const DEFAULT_SCALE = 0.8;
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 4;
 

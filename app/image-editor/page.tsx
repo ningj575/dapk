@@ -648,7 +648,26 @@ function UniversalImageContent() {
     const startedAt = Date.now();
     const messageId = Date.now();
     const loadingMessageId = messageId + 1;
-    let messageCreated = false;
+    const optimisticConversationId = -messageId;
+    let serverRecordId = 0;
+    const userMessage: Message = {
+      id: messageId,
+      conversationId: optimisticConversationId,
+      role: "user",
+      text: request.prompt,
+      images: request.images,
+      request
+    };
+    const loadingMessage: Message = {
+      id: loadingMessageId,
+      conversationId: optimisticConversationId,
+      role: "assistant",
+      text: "",
+      aspectRatio: request.aspectRatio,
+      retryRequest: request,
+      status: "loading"
+    };
+    setMessages((items) => [...items, userMessage, loadingMessage]);
 
     try {
       const response = await fetch(`${apiBase}/api/universal-image`, {
@@ -675,31 +694,22 @@ function UniversalImageContent() {
       if (!result.data.id) {
         throw new Error("生成任务创建失败");
       }
-      const userMessage: Message = {
-        id: messageId,
-        conversationId: result.data.id,
-        recordId: result.data.id,
-        role: "user",
-        text: request.prompt,
-        images: request.images,
-        request
-      };
-      const loadingMessage: Message = {
-        id: loadingMessageId,
-        conversationId: result.data.id,
-        recordId: result.data.id,
-        role: "assistant",
-        text: "",
-        aspectRatio: request.aspectRatio,
-        retryRequest: request,
-        status: "loading"
-      };
-      messageCreated = true;
-      setMessages((items) => [...items, userMessage, loadingMessage]);
+      serverRecordId = Number(result.data.id);
+      setMessages((items) =>
+        items.map((message) =>
+          message.id === messageId || message.id === loadingMessageId
+            ? {
+                ...message,
+                conversationId: serverRecordId,
+                recordId: serverRecordId
+              }
+            : message
+        )
+      );
 
       const immediateImages = (result.data.images || []).map(mediaUrl);
       if (immediateImages.length === 0 || result.data.done === false || result.data.status === "processing") {
-        await pollUniversalImage(result.data.id, loadingMessageId, startedAt);
+        await pollUniversalImage(serverRecordId, loadingMessageId, startedAt);
         return true;
       }
 
@@ -719,7 +729,8 @@ function UniversalImageContent() {
       return true;
     } catch (event) {
       const message = event instanceof Error ? event.message : "生成失败";
-      if (!messageCreated) {
+      if (!serverRecordId) {
+        setMessages((items) => items.filter((item) => item.id !== messageId && item.id !== loadingMessageId));
         if (message.includes("积分不足")) {
           setCreditError(true);
           setError("");
@@ -869,6 +880,7 @@ function UniversalImageContent() {
                     onCopy={() => void copyPrompt(message)}
                     onQuote={() => quoteMessage(message)}
                     onDelete={() => setPendingDelete({ conversationId: message.conversationId, recordId: message.recordId })}
+                    onPreview={(index) => setLightboxPreview({ images: message.images || [], index, prefix: `xinglu-reference-${message.id}` })}
                   />
                 ) : (
                   <AssistantMessageContent
@@ -916,15 +928,28 @@ function UniversalImageContent() {
             <div className="flex flex-wrap items-center gap-2">
               {uploadItems.map((item) => (
                 <div key={item.id} data-testid="upload-preview" className="group relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#ded8cd] bg-[#f6f5f3]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.src} alt="上传图片预览" className="h-full w-full object-cover" />
                   <button
                     type="button"
-                    className="absolute inset-0 hidden items-center justify-center bg-[#101827]/55 text-white group-hover:flex"
+                    className="block h-full w-full"
+                    aria-label="预览上传图片"
+                    onClick={() =>
+                      setLightboxPreview({
+                        images: uploadItems.map((current) => current.src),
+                        index: Math.max(0, uploadItems.findIndex((current) => current.id === item.id)),
+                        prefix: "xinglu-upload-reference",
+                      })
+                    }
+                  >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.src} alt="上传图片预览" className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.04]" />
+                  </button>
+                  <button
+                    type="button"
+                    className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#101827]/80 text-white opacity-0 transition hover:bg-[#101827] group-hover:opacity-100"
                     aria-label="移除上传图片"
                     onClick={() => setUploadItems((items) => items.filter((current) => current.id !== item.id))}
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 </div>
               ))}
@@ -991,13 +1016,15 @@ function UserMessageContent({
   copied,
   onCopy,
   onQuote,
-  onDelete
+  onDelete,
+  onPreview
 }: {
   message: Message;
   copied: boolean;
   onCopy: () => void;
   onQuote: () => void;
   onDelete: () => void;
+  onPreview: (index: number) => void;
 }) {
   const text = message.text;
   const images = message.images || [];
@@ -1012,10 +1039,16 @@ function UserMessageContent({
           style={{ gridTemplateColumns: `repeat(${columns}, 128px)` }}
         >
           {images.map((src, index) => (
-            <div key={`${src}-${index}`} className="h-24 w-24 overflow-hidden rounded-[8px] bg-[#d1d1d3] sm:h-32 sm:w-32">
+            <button
+              key={`${src}-${index}`}
+              type="button"
+              className="group h-24 w-24 overflow-hidden rounded-[8px] bg-[#d1d1d3] outline-none ring-[#101827]/20 transition hover:opacity-95 focus-visible:ring-4 sm:h-32 sm:w-32"
+              onClick={() => onPreview(index)}
+              aria-label={`预览参考图 ${index + 1}`}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={`参考图 ${index + 1}`} className="h-full w-full object-cover" />
-            </div>
+              <img src={src} alt={`参考图 ${index + 1}`} className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]" />
+            </button>
           ))}
         </div>
       )}
