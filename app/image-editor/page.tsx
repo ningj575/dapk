@@ -10,7 +10,7 @@ import { downloadImage } from "@/lib/download-image";
 import { AlertTriangle, Check, ChevronDown, Copy, CornerDownLeft, Download, Loader2, Pencil, Plus, RefreshCw, Send, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import type { ClipboardEvent, DragEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type ApiResponse<T> = {
   code: number;
@@ -374,6 +374,14 @@ function UniversalImageContent() {
     [hiddenConversationIds, messages]
   );
 
+  const scrollToConversationBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const scroll = () => bottomRef.current?.scrollIntoView({ behavior, block: "end" });
+    window.requestAnimationFrame(scroll);
+    window.setTimeout(scroll, 120);
+    window.setTimeout(scroll, 420);
+    window.setTimeout(scroll, 900);
+  }, []);
+
   useEffect(() => {
     if (!token) return;
     void refreshAuthUser(apiBase).catch(() => undefined);
@@ -427,18 +435,25 @@ function UniversalImageContent() {
       signal: controller.signal
     })
       .then((response) => readApi<{ records: GenerationRecord[] }>(response))
-      .then((result) => setMessages(recordsToMessages(result.data.records || [])))
+      .then((result) => {
+        const nextMessages = recordsToMessages(result.data.records || []);
+        setMessages(nextMessages);
+        if (nextMessages.length > 0) {
+          scrollToConversationBottom("auto");
+        }
+      })
       .catch((event) => {
         if ((event as Error).name !== "AbortError") {
           setError(event instanceof Error ? event.message : "历史记录加载失败");
         }
       });
     return () => controller.abort();
-  }, [token]);
+  }, [scrollToConversationBottom, token]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, generating]);
+    if (visibleMessages.length === 0) return;
+    scrollToConversationBottom(generating ? "smooth" : "auto");
+  }, [generating, scrollToConversationBottom, visibleMessages.length]);
 
   async function onFilesChange(files?: FileList | File[] | null) {
     if (!files || files.length === 0) return;
