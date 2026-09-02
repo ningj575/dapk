@@ -196,7 +196,8 @@ function GenerationRecordsContent() {
         filter,
         keyword: query.trim(),
         exclude_type: "watermark_remover",
-        hide_failed: "1"
+        hide_failed: "1",
+        recent_days: "3"
       });
       const response = await fetch(`${apiBase}/api/generations?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
       const result = await readApi<GenerationRecordsPayload>(response);

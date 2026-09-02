@@ -3,7 +3,9 @@
 import {
   ArrowRight,
   BadgeCheck,
+  ChevronLeft,
   ChevronDown,
+  ChevronRight,
   CircleDollarSign,
   Clock,
   Download,
@@ -79,6 +81,9 @@ type VideoTaskStatusPayload = {
 };
 type VideoAssetsPayload = {
   assets: UploadPreview[];
+  total?: number;
+  page?: number;
+  page_size?: number;
 };
 type VideoModelConfigsPayload = {
   configs: VideoModelConfig[];
@@ -208,6 +213,8 @@ export default function VideoStudioPage() {
   const [jobs, setJobs] = useState<VideoJob[]>([]);
   const [lastGenerated, setLastGenerated] = useState<VideoJob | null>(null);
   const [serverAssets, setServerAssets] = useState<UploadPreview[]>([]);
+  const [assetPage, setAssetPage] = useState(1);
+  const [assetTotal, setAssetTotal] = useState(0);
   const [error, setError] = useState("");
   const [loadingRemote, setLoadingRemote] = useState(false);
   const [videoConfigLoaded, setVideoConfigLoaded] = useState(false);
@@ -269,20 +276,25 @@ export default function VideoStudioPage() {
     if (!token) return;
     setLoadingRemote(true);
     try {
+      const assetParams = new URLSearchParams({
+        page: String(assetPage),
+        page_size: "12"
+      });
       const [recordsResponse, assetsResponse] = await Promise.all([
         fetch(`${apiBase}/api/video-generations`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${apiBase}/api/video-assets`, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${apiBase}/api/video-assets?${assetParams.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       const records = await readApi<VideoRecordsPayload>(recordsResponse);
       const assets = await readApi<VideoAssetsPayload>(assetsResponse);
       setJobs(records.data.records || []);
       setServerAssets(assets.data.assets || []);
+      setAssetTotal(Number(assets.data.total || 0));
     } catch (event) {
       setError(event instanceof Error ? event.message : "加载视频数据失败");
     } finally {
       setLoadingRemote(false);
     }
-  }, [token]);
+  }, [assetPage, token]);
 
   const refreshVideoConfigs = useCallback(async () => {
     try {
@@ -564,7 +576,7 @@ export default function VideoStudioPage() {
               {error && <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{error}</div>}
               {tab === "result" && <ResultPanel phase={phase} job={lastGenerated} />}
               {tab === "videos" && <RecentPanel jobs={jobs} />}
-              {tab === "assets" && <AssetsPanel assets={uploadedAssets} onUseAsset={addAssetFromLibrary} />}
+              {tab === "assets" && <AssetsPanel assets={serverAssets} onUseAsset={addAssetFromLibrary} page={assetPage} pageSize={12} total={assetTotal} onPageChange={setAssetPage} />}
             </section>
           </div>
         </section>
@@ -1043,9 +1055,29 @@ function RecentPanel({ jobs }: { jobs: VideoJob[] }) {
   );
 }
 
-function AssetsPanel({ assets, onUseAsset }: { assets: UploadPreview[]; onUseAsset: (asset: UploadPreview) => void }) {
+function AssetsPanel({
+  assets,
+  onUseAsset,
+  page,
+  pageSize,
+  total,
+  onPageChange
+}: {
+  assets: UploadPreview[];
+  onUseAsset: (asset: UploadPreview) => void;
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   if (assets.length === 0) {
-    return <EmptyState icon={<Images className="h-6 w-6" />} title="暂无素材" desc="通过视频生成模块上传的图片或视频会显示在这里。" />;
+    return (
+      <div className="space-y-4">
+        <EmptyState icon={<Images className="h-6 w-6" />} title="暂无素材" desc="通过视频生成模块上传的图片或视频会显示在这里。" />
+        {totalPages > 1 && <AssetPagination page={page} totalPages={totalPages} total={total} onPageChange={onPageChange} />}
+      </div>
+    );
   }
 
   return (
@@ -1069,6 +1101,44 @@ function AssetsPanel({ assets, onUseAsset }: { assets: UploadPreview[]; onUseAss
           </button>
         ))}
       </div>
+      {totalPages > 1 && <AssetPagination page={page} totalPages={totalPages} total={total} onPageChange={onPageChange} />}
+    </div>
+  );
+}
+
+function AssetPagination({
+  page,
+  totalPages,
+  total,
+  onPageChange
+}: {
+  page: number;
+  totalPages: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-3 pt-2 text-xs font-semibold text-[#697080]">
+      <button
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-[#ded8cd] bg-white text-[#101827] disabled:cursor-not-allowed disabled:opacity-40"
+        type="button"
+        disabled={page <= 1}
+        onClick={() => onPageChange(Math.max(1, page - 1))}
+        aria-label="上一页素材"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <span>{page} / {totalPages}</span>
+      <button
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-[#ded8cd] bg-white text-[#101827] disabled:cursor-not-allowed disabled:opacity-40"
+        type="button"
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+        aria-label="下一页素材"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+      <span>共 {total} 条</span>
     </div>
   );
 }

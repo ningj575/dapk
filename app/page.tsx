@@ -25,7 +25,7 @@ const HOME_DRAFT_KEY = "dake_home_generation_draft";
 const heroTools: Array<{ key: HeroToolKey; label: string; href: string; placeholders: string[] }> = [
   {
     key: "image-editor",
-    label: "图像创作",
+    label: "万能生图",
     href: "/image-editor",
     placeholders: [
       "输入创意描述，直接生成商品海报或场景图",
