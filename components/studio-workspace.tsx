@@ -147,6 +147,47 @@ function aspectRatioStyle(ratio: string) {
   return match ? `${match[1]} / ${match[2]}` : "1 / 1";
 }
 
+function imageProxyUrlForCanvas(src: string, filename: string) {
+  const resolved = mediaUrl(src);
+  if (!resolved || resolved.startsWith("data:") || resolved.startsWith("blob:")) return resolved;
+  const url = new URL(resolved, window.location.href);
+  if (url.origin === window.location.origin) return url.toString();
+  return `/api/download-image?url=${encodeURIComponent(url.toString())}&filename=${encodeURIComponent(filename)}`;
+}
+
+function loadCanvasImage(src: string, index: number): Promise<{ image: HTMLImageElement; objectUrl: string }> {
+  return fetch(imageProxyUrlForCanvas(src, `xinglu-detail-source-${index + 1}.png`), { cache: "no-store" })
+    .then((response) => {
+      if (!response.ok) throw new Error("图片加载失败");
+      return response.blob();
+    })
+    .then(
+      (blob) =>
+        new Promise<{ image: HTMLImageElement; objectUrl: string }>((resolve, reject) => {
+          const objectUrl = URL.createObjectURL(blob);
+          const image = new Image();
+          image.onload = () => resolve({ image, objectUrl });
+          image.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error("图片加载失败"));
+          };
+          image.src = objectUrl;
+        })
+    );
+}
+
+function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+      reject(new Error("长图生成失败"));
+    }, "image/png");
+  });
+}
+
 function orderedTaskSlots(tasks: ImageTask[], quantity: string) {
   const count = Number.parseInt(quantity, 10) || 1;
   return Array.from({ length: count }, (_, index) => tasks.find((task) => Number(task.task_index) === index + 1) || null);
@@ -1507,6 +1548,8 @@ function ResultPanel({
   const hasOutput = successfulImages.length > 0 || tasks.length > 0 || phase === "complete";
   const [detailPreviewOpen, setDetailPreviewOpen] = useState(false);
   const [detailLightboxIndex, setDetailLightboxIndex] = useState<number | null>(null);
+  const [stitchingDownload, setStitchingDownload] = useState(false);
+  const [stitchingError, setStitchingError] = useState("");
   const detailDisplayImages = successfulImages.map((image) => mediaUrl(image));
   function downloadAllImages() {
     successfulImages.forEach((image, index) => {
@@ -1516,33 +1559,41 @@ function ResultPanel({
     });
   }
   async function downloadStitchedImage() {
-    if (successfulImages.length === 0) return;
-    const loaded = await Promise.all(
-      successfulImages.map(
-        (src) =>
-          new Promise<HTMLImageElement>((resolve, reject) => {
-            const image = new Image();
-            image.crossOrigin = "anonymous";
-            image.onload = () => resolve(image);
-            image.onerror = reject;
-            image.src = mediaUrl(src);
-          })
-      )
-    );
-    const width = Math.max(...loaded.map((image) => image.naturalWidth || 1024));
-    const height = loaded.reduce((sum, image) => sum + Math.round(((image.naturalHeight || 1024) * width) / (image.naturalWidth || width)), 0);
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    let y = 0;
-    loaded.forEach((image) => {
-      const drawHeight = Math.round(((image.naturalHeight || 1024) * width) / (image.naturalWidth || width));
-      context.drawImage(image, 0, y, width, drawHeight);
-      y += drawHeight;
-    });
-    await downloadImage(canvas.toDataURL("image/png"), "xinglu-detail-stitched.png");
+    if (successfulImages.length === 0 || stitchingDownload) return;
+    const objectUrls: string[] = [];
+    setStitchingDownload(true);
+    setStitchingError("");
+    try {
+      const loaded = await Promise.all(
+        successfulImages.map(async (src, index) => {
+          const item = await loadCanvasImage(src, index);
+          objectUrls.push(item.objectUrl);
+          return item.image;
+        })
+      );
+      const width = Math.max(...loaded.map((image) => image.naturalWidth || 1024));
+      const height = loaded.reduce((sum, image) => sum + Math.round(((image.naturalHeight || 1024) * width) / (image.naturalWidth || width)), 0);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("长图生成失败");
+      let y = 0;
+      loaded.forEach((image) => {
+        const drawHeight = Math.round(((image.naturalHeight || 1024) * width) / (image.naturalWidth || width));
+        context.drawImage(image, 0, y, width, drawHeight);
+        y += drawHeight;
+      });
+      const blob = await canvasToPngBlob(canvas);
+      const objectUrl = URL.createObjectURL(blob);
+      objectUrls.push(objectUrl);
+      await downloadImage(objectUrl, "xinglu-detail-stitched.png");
+    } catch {
+      setStitchingError("长图下载失败，请稍后重试");
+    } finally {
+      setStitchingDownload(false);
+      window.setTimeout(() => objectUrls.forEach((url) => URL.revokeObjectURL(url)), 8000);
+    }
   }
 
   return (
@@ -1598,10 +1649,11 @@ function ResultPanel({
                 </div>
               </div>
               <div className="flex justify-end gap-2 border-t border-[#ebe5da] px-5 py-4">
+                {stitchingError && <p className="mr-auto self-center text-sm font-semibold text-red-600">{stitchingError}</p>}
                 <button className="studio-tool-btn" type="button" onClick={() => setDetailPreviewOpen(false)}>关闭</button>
-                <button className="studio-tool-btn bg-[#101827] text-white" type="button" onClick={() => void downloadStitchedImage()}>
-                  <Download className="h-4 w-4" />
-                  下载长图
+                <button className="studio-tool-btn bg-[#101827] text-white disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={stitchingDownload} onClick={() => void downloadStitchedImage()}>
+                  {stitchingDownload ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {stitchingDownload ? "生成长图..." : "下载长图"}
                 </button>
               </div>
             </div>
