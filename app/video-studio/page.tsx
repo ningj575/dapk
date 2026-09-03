@@ -119,6 +119,23 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function mediaAssetKey(src: string) {
+  const value = String(src || "").trim();
+  if (!value) return "";
+  if (value.startsWith("data:")) return value.slice(0, 240);
+  try {
+    const url = new URL(value);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return value.split("?")[0].split("#")[0];
+  }
+}
+
+function uploadPreviewKey(asset: UploadPreview) {
+  const srcKey = mediaAssetKey(asset.src);
+  return `${asset.video ? "video" : "image"}:${srcKey || asset.id || asset.name}`;
+}
+
 async function uploadVideoImageAssets(assets: Array<UploadPreview & { role?: string }>, token: string) {
   const dataImages = assets.filter((asset) => !asset.video && asset.src.startsWith("data:image/"));
   if (dataImages.length === 0) return assets;
@@ -246,11 +263,13 @@ export default function VideoStudioPage() {
     [firstFrameAssets, lastFrameAssets, oneClickAssets, repProductAssets, repVideoAssets]
   );
 
-  const uploadedAssets = useMemo(() => {
+  const visibleServerAssets = useMemo(() => {
+    const selected = new Set(localUploadedAssets.map(uploadPreviewKey));
     const known = new Set<string>();
-    return [...localUploadedAssets, ...serverAssets].filter((asset) => {
-      const key = `${asset.name}-${asset.src.slice(0, 80)}`;
-      if (known.has(key)) return false;
+    return serverAssets.filter((asset) => {
+      const key = uploadPreviewKey(asset);
+      if (!key) return false;
+      if (selected.has(key) || known.has(key)) return false;
       known.add(key);
       return true;
     });
@@ -400,7 +419,8 @@ export default function VideoStudioPage() {
   }
 
   function appendLibraryAssets(items: UploadPreview[], asset: UploadPreview, maxFiles: number) {
-    if (items.some((item) => item.src === asset.src)) return items;
+    const key = uploadPreviewKey(asset);
+    if (items.some((item) => uploadPreviewKey(item) === key)) return items;
     return [...items, { ...asset, id: `${Date.now()}-${asset.id}` }].slice(0, maxFiles);
   }
 
@@ -576,7 +596,7 @@ export default function VideoStudioPage() {
               {error && <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{error}</div>}
               {tab === "result" && <ResultPanel phase={phase} job={lastGenerated} />}
               {tab === "videos" && <RecentPanel jobs={jobs} />}
-              {tab === "assets" && <AssetsPanel assets={serverAssets} onUseAsset={addAssetFromLibrary} page={assetPage} pageSize={12} total={assetTotal} onPageChange={setAssetPage} />}
+              {tab === "assets" && <AssetsPanel assets={visibleServerAssets} onUseAsset={addAssetFromLibrary} page={assetPage} pageSize={12} total={assetTotal} onPageChange={setAssetPage} />}
             </section>
           </div>
         </section>
