@@ -29,6 +29,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { AnnouncementButton } from "@/components/announcement-button";
 import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { notifyAuthChanged, useAuthToken } from "@/components/auth-state";
+import { downloadVideo } from "@/lib/download-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Mode = "one-click-2" | "first-last-2" | "video-rep-4";
@@ -263,8 +264,13 @@ export default function VideoStudioPage() {
     [firstFrameAssets, lastFrameAssets, oneClickAssets, repProductAssets, repVideoAssets]
   );
 
+  const selectedServerAssetKeys = useMemo(
+    () => localUploadedAssets.map(uploadPreviewKey).filter((key) => key && !key.includes(":data:")),
+    [localUploadedAssets]
+  );
+
   const visibleServerAssets = useMemo(() => {
-    const selected = new Set(localUploadedAssets.map(uploadPreviewKey));
+    const selected = new Set(selectedServerAssetKeys);
     const known = new Set<string>();
     return serverAssets.filter((asset) => {
       const key = uploadPreviewKey(asset);
@@ -273,7 +279,7 @@ export default function VideoStudioPage() {
       known.add(key);
       return true;
     });
-  }, [localUploadedAssets, serverAssets]);
+  }, [selectedServerAssetKeys, serverAssets]);
 
   const localAssetsWithRoles = useMemo(() => [
     ...oneClickAssets.map((asset) => ({ ...asset, mode: "one-click-2", role: "one_click_image" })),
@@ -299,6 +305,9 @@ export default function VideoStudioPage() {
         page: String(assetPage),
         page_size: "12"
       });
+      selectedServerAssetKeys.forEach((key) => {
+        assetParams.append("exclude_keys[]", key);
+      });
       const [recordsResponse, assetsResponse] = await Promise.all([
         fetch(`${apiBase}/api/video-generations`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${apiBase}/api/video-assets?${assetParams.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
@@ -313,7 +322,7 @@ export default function VideoStudioPage() {
     } finally {
       setLoadingRemote(false);
     }
-  }, [assetPage, token]);
+  }, [assetPage, selectedServerAssetKeys, token]);
 
   const refreshVideoConfigs = useCallback(async () => {
     try {
@@ -1023,10 +1032,10 @@ function ResultPanel({ phase, job }: { phase: string; job: VideoJob | null }) {
 
       {generated && (
         <div className="flex items-center justify-end gap-3">
-          <a className="studio-tool-btn" href={job.src} download target="_blank" rel="noreferrer">
+          <button className="studio-tool-btn" type="button" onClick={() => void downloadVideo(job.src, `xinglu-video-${job.id}.mp4`)}>
             <Download className="h-3.5 w-3.5" />
             下载
-          </a>
+          </button>
         </div>
       )}
     </div>
@@ -1059,9 +1068,9 @@ function RecentPanel({ jobs }: { jobs: VideoJob[] }) {
               )}
               <span className={`absolute left-1.5 top-1.5 rounded-full px-2 py-0.5 text-[9px] font-semibold ${job.status === "complete" ? "bg-emerald-100 text-emerald-700" : job.status === "failed" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{job.status === "complete" ? "完成" : job.status === "failed" ? "失败" : "生成中"}</span>
               {job.status === "complete" && job.src && (
-                <a className="absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#101827] shadow-sm transition hover:bg-white" href={job.src} download target="_blank" rel="noreferrer" aria-label="下载视频">
+                <button className="absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#101827] shadow-sm transition hover:bg-white" type="button" onClick={() => void downloadVideo(job.src, `xinglu-video-${job.id}.mp4`)} aria-label="下载视频">
                   <Download className="h-3.5 w-3.5" />
-                </a>
+                </button>
               )}
             </div>
             <div className="px-3 py-2.5">

@@ -6,8 +6,8 @@ import { MobileWorkspaceMenu, WorkspaceNav } from "@/components/workspace-nav";
 import { AuthGuard } from "@/components/auth-guard";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { useAuthToken } from "@/components/auth-state";
-import { downloadImage } from "@/lib/download-image";
-import { ChevronLeft, ChevronRight, Clock3, ImageIcon, Search, Sparkles, Video } from "lucide-react";
+import { downloadVideo } from "@/lib/download-image";
+import { ChevronLeft, ChevronRight, Clock3, Download, ImageIcon, Search, Sparkles, Video } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -276,9 +276,21 @@ function GenerationRecordsContent() {
                 const title = displayRecordTitle(record);
                 return (
                   <article key={record.id} className="overflow-hidden rounded-xl border border-[#dfe5ea] bg-white shadow-[0_8px_20px_-18px_rgba(16,24,39,0.5)]">
-                    <div className="aspect-[4/3] overflow-hidden bg-[#eef2f5]">
+                    <div className="relative aspect-[4/3] overflow-hidden bg-[#eef2f5]">
                       {media.type === "video" ? (
-                        <video className="h-full w-full object-cover" controls muted playsInline poster={media.poster} src={media.src} />
+                        <>
+                          <video className="h-full w-full object-cover" controls muted playsInline poster={media.poster} src={media.src} />
+                          {media.src && (
+                            <button
+                              className="absolute bottom-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-[#101827] shadow-[0_10px_24px_-14px_rgba(16,24,39,0.65)] transition hover:bg-[#101827] hover:text-white"
+                              type="button"
+                              onClick={() => void downloadVideo(media.src, `xinglu-video-${record.id}.mp4`)}
+                              aria-label="下载视频"
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+                          )}
+                        </>
                       ) : (
                         <button className="block h-full w-full cursor-zoom-in" type="button" onClick={() => setPreview({ images: media.images, index: 0, title })} aria-label="查看图片">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
