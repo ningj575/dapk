@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { SupportFloating } from "@/components/support-floating";
-import BaiduAnalytics from "@/components/BaiduAnalytics"; // 引入百度统计组件
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,7 +27,6 @@ export default function RootLayout({
       <body>
         {children}
         <SupportFloating />
-        <BaiduAnalytics />
       </body>
     </html>
   );
