@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { SupportFloating } from "@/components/support-floating";
 import "./globals.css";
 
@@ -27,6 +28,22 @@ export default function RootLayout({
       <body>
         {children}
         <SupportFloating />
+        <Script
+          id="baidu-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+var _hmt = window._hmt || [];
+window._hmt = _hmt;
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?f80abeff353ecaf34413968917c80d8e";
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+})();
+            `.trim()
+          }}
+        />
       </body>
     </html>
   );
