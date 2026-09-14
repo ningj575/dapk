@@ -297,10 +297,11 @@ function WechatNativeDialog({
   onClose: () => void;
   onPaid: (payload: RechargeOrderStatusPayload) => void;
 }) {
+  const codeUrl = payment?.code_url || payment?.pay_url || "";
   const [statusText, setStatusText] = useState("正在等待扫码支付结果");
 
   useEffect(() => {
-    if (!payment?.code_url || !payment.order_no || !token) return;
+    if (!codeUrl || !payment?.order_no || !token) return;
     let stopped = false;
 
     async function checkOrderStatus() {
@@ -339,9 +340,9 @@ function WechatNativeDialog({
       stopped = true;
       window.clearInterval(timer);
     };
-  }, [payment?.code_url, payment?.order_no, token, onPaid]);
+  }, [codeUrl, payment?.order_no, token, onPaid]);
 
-  if (!payment?.code_url) return null;
+  if (!codeUrl) return null;
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-[#101827]/45 px-4 backdrop-blur-sm">
       <section className="w-full max-w-[420px] rounded-[10px] border border-[#e1dbd1] bg-white p-6 text-center shadow-[0_30px_90px_-45px_rgba(16,24,39,0.9)]">
@@ -351,14 +352,12 @@ function WechatNativeDialog({
         <h2 className="mt-1 text-xl font-extrabold text-[#101827]">微信扫码支付</h2>
         <p className="mt-2 text-sm font-semibold text-[#697080]">请使用微信扫描二维码完成充值</p>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="mx-auto mt-5 h-[260px] w-[260px] rounded-[8px] border border-[#e5e7eb] bg-white p-2" src={qrImageUrl(payment.code_url)} alt="微信支付二维码" />
+        <img className="mx-auto mt-5 h-[260px] w-[260px] rounded-[8px] border border-[#e5e7eb] bg-white p-2" src={qrImageUrl(codeUrl)} alt="微信支付二维码" />
         <div className="mt-4 flex items-center justify-center gap-2 text-sm font-bold text-[#697080]">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#d6dbe1] border-t-[#101827]" />
           {statusText}
         </div>
-        <a className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[#101827] px-5 text-sm font-black text-white" href={payment.code_url}>
-          打开微信支付
-        </a>
+        <p className="mt-3 text-xs font-semibold leading-5 text-[#8a94a3]">支付成功后页面会自动跳转，请不要关闭当前窗口。</p>
       </section>
     </div>
   );
@@ -481,6 +480,16 @@ function PricingContent() {
         setSupportPayment(payment);
         setSelectedPackage(null);
         setPayload(result.data);
+        return;
+      }
+      if (payment?.method === "wechat" && (payment.code_url || payment.pay_url)) {
+        setNativePayment({
+          ...payment,
+          mode: "native",
+          code_url: payment.code_url || payment.pay_url
+        });
+        setSelectedPackage(null);
+        setPaymentRedirecting(false);
         return;
       }
       if (payment?.mode === "native" && payment.code_url) {
