@@ -298,15 +298,16 @@ function WechatNativeDialog({
   onPaid: (payload: RechargeOrderStatusPayload) => void;
 }) {
   const codeUrl = payment?.code_url || payment?.pay_url || "";
+  const orderNo = payment?.order_no || "";
   const [statusText, setStatusText] = useState("正在等待扫码支付结果");
 
   useEffect(() => {
-    if (!codeUrl || !payment?.order_no || !token) return;
+    if (!codeUrl || !orderNo || !token) return;
     let stopped = false;
 
     async function checkOrderStatus() {
       try {
-        const response = await fetch(`${apiBase}/api/packages/order-status?order_no=${encodeURIComponent(payment.order_no)}`, {
+        const response = await fetch(`${apiBase}/api/packages/order-status?order_no=${encodeURIComponent(orderNo)}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const result = await readApi<RechargeOrderStatusPayload>(response);
@@ -340,7 +341,7 @@ function WechatNativeDialog({
       stopped = true;
       window.clearInterval(timer);
     };
-  }, [codeUrl, payment?.order_no, token, onPaid]);
+  }, [codeUrl, orderNo, token, onPaid]);
 
   if (!codeUrl) return null;
   return (
