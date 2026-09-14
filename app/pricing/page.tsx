@@ -41,9 +41,14 @@ type PackagePayload = {
   payment_methods: PaymentMethodInfo[];
   payment?: {
     method: PaymentMethod;
-    mode: "pc" | "wap";
+    mode: "pc" | "wap" | "native" | "jsapi" | "jsapi_oauth" | "support";
     order_no: string;
-    pay_url: string;
+    pay_url?: string;
+    code_url?: string;
+    qr_code?: string;
+    service_time?: string;
+    title?: string;
+    desc?: string;
   };
 };
 
@@ -53,7 +58,7 @@ type ApiResponse<T> = {
   data: T;
 };
 
-type PaymentMethod = "wechat" | "alipay";
+type PaymentMethod = "wechat" | "alipay" | "support";
 
 type PaymentMethodInfo = {
   key: PaymentMethod;
@@ -126,6 +131,22 @@ function formatPoints(points: number) {
   return new Intl.NumberFormat("en-US").format(points);
 }
 
+function isMobileBrowser() {
+  if (typeof window === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent);
+}
+
+function qrImageUrl(value: string) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(value)}`;
+}
+
+function resolveMediaUrl(src?: string) {
+  const value = String(src || "").trim();
+  if (!value) return "";
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+  return `${apiBase}${value.startsWith("/") ? value : `/${value}`}`;
+}
+
 async function readApi<T>(response: Response): Promise<ApiResponse<T>> {
   const payload = (await response.json()) as ApiResponse<T>;
   if (!response.ok || payload.code !== 0) {
@@ -176,7 +197,8 @@ function PaymentDialog({
 
   const methodIcons = {
     wechat: { icon: QrCode, iconClass: "text-[#06b48a]" },
-    alipay: { icon: CreditCard, iconClass: "text-[#176bff]" }
+    alipay: { icon: CreditCard, iconClass: "text-[#176bff]" },
+    support: { icon: QrCode, iconClass: "text-[#101827]" }
   };
 
   return (
@@ -202,7 +224,7 @@ function PaymentDialog({
 
         <div className="mt-5 space-y-3">
           {methods.map((payMethod) => {
-            const Icon = methodIcons[payMethod.key].icon;
+            const Icon = methodIcons[payMethod.key]?.icon || QrCode;
             const selected = method === payMethod.key;
             return (
               <button
@@ -216,7 +238,7 @@ function PaymentDialog({
                 <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${selected ? "border-[#101827]" : "border-[#e6eaee]"}`}>
                   {selected && <span className="h-2 w-2 rounded-full bg-[#101827]" />}
                 </span>
-                <Icon className={`h-5 w-5 ${methodIcons[payMethod.key].iconClass}`} />
+                <Icon className={`h-5 w-5 ${methodIcons[payMethod.key]?.iconClass || "text-[#101827]"}`} />
                 <span>
                   <span className="block text-base font-extrabold text-[#101827]">{payMethod.name}</span>
                   <span className="mt-0.5 block text-sm font-semibold text-[#697080]">{payMethod.desc}</span>
@@ -250,9 +272,54 @@ function PaymentDialog({
         {redirecting && (
           <div className="mt-4 flex items-center justify-center gap-2 text-sm font-bold text-[#697080]">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#d6dbe1] border-t-[#101827]" />
-            正在打开支付宝支付页面，请稍候
+            正在打开支付页面，请稍候
           </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+function WechatNativeDialog({ payment, onClose }: { payment: PackagePayload["payment"] | null; onClose: () => void }) {
+  if (!payment?.code_url) return null;
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-[#101827]/45 px-4 backdrop-blur-sm">
+      <section className="w-full max-w-[420px] rounded-[10px] border border-[#e1dbd1] bg-white p-6 text-center shadow-[0_30px_90px_-45px_rgba(16,24,39,0.9)]">
+        <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#697080] transition hover:bg-[#f0f2f4] hover:text-[#101827]" type="button" onClick={onClose} aria-label="关闭">
+          <X className="h-5 w-5" />
+        </button>
+        <h2 className="mt-1 text-xl font-extrabold text-[#101827]">微信扫码支付</h2>
+        <p className="mt-2 text-sm font-semibold text-[#697080]">请使用微信扫描二维码完成充值</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="mx-auto mt-5 h-[260px] w-[260px] rounded-[8px] border border-[#e5e7eb] bg-white p-2" src={qrImageUrl(payment.code_url)} alt="微信支付二维码" />
+        <a className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[#101827] px-5 text-sm font-black text-white" href={payment.code_url}>
+          打开微信支付
+        </a>
+      </section>
+    </div>
+  );
+}
+
+function SupportPaymentDialog({ payment, onClose }: { payment: PackagePayload["payment"] | null; onClose: () => void }) {
+  if (payment?.mode !== "support") return null;
+  const qrCode = resolveMediaUrl(payment.qr_code || "");
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-[#101827]/45 px-4 backdrop-blur-sm">
+      <section className="w-full max-w-[420px] rounded-[10px] border border-[#e1dbd1] bg-white p-6 text-center shadow-[0_30px_90px_-45px_rgba(16,24,39,0.9)]">
+        <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#697080] transition hover:bg-[#f0f2f4] hover:text-[#101827]" type="button" onClick={onClose} aria-label="关闭">
+          <X className="h-5 w-5" />
+        </button>
+        <h2 className="mt-1 text-xl font-extrabold text-[#101827]">{payment.title || "联系客服充值"}</h2>
+        <p className="mt-2 text-sm font-semibold text-[#697080]">{payment.desc || "请联系客服人工充值。"}</p>
+        {qrCode ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="mx-auto mt-5 h-[220px] w-[220px] rounded-2xl border border-[#e9e1d7] bg-white p-2 shadow-sm" src={qrCode} alt="客服二维码" />
+        ) : (
+          <div className="mx-auto mt-5 flex h-[220px] w-[220px] items-center justify-center rounded-2xl border border-dashed border-[#d8d1c6] bg-[#faf9f7] px-4 text-sm font-bold text-[#697080]">
+            暂未配置客服二维码
+          </div>
+        )}
+        <p className="mt-4 text-xs font-semibold text-[#8a94a3]">服务时间：{payment.service_time || "9:00-22:00"}</p>
       </section>
     </div>
   );
@@ -268,6 +335,8 @@ function PricingContent() {
   const [paymentRedirecting, setPaymentRedirecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wechat");
+  const [nativePayment, setNativePayment] = useState<PackagePayload["payment"] | null>(null);
+  const [supportPayment, setSupportPayment] = useState<PackagePayload["payment"] | null>(null);
 
   const user = payload?.user || storedUser;
   const balance = typeof user?.credits === "number" ? user.credits : 0;
@@ -337,10 +406,28 @@ function PricingContent() {
         })
       });
       const result = await readApi<PackagePayload>(response);
-      if (result.data.payment?.pay_url) {
+      const payment = result.data.payment;
+      if (payment?.mode === "support") {
+        setSupportPayment(payment);
+        setSelectedPackage(null);
+        setPayload(result.data);
+        return;
+      }
+      if (payment?.mode === "native" && payment.code_url) {
+        if (isMobileBrowser()) {
+          redirectStarted = true;
+          setPaymentRedirecting(true);
+          window.location.href = payment.code_url;
+        } else {
+          setNativePayment(payment);
+          setSelectedPackage(null);
+        }
+        return;
+      }
+      if (payment?.pay_url) {
         redirectStarted = true;
         setPaymentRedirecting(true);
-        window.location.href = result.data.payment.pay_url;
+        window.location.href = payment.pay_url;
         return;
       }
       setPayload(result.data);
@@ -465,6 +552,8 @@ function PricingContent() {
         onMethodChange={setPaymentMethod}
         onConfirm={() => void confirmPayment()}
       />
+      <WechatNativeDialog payment={nativePayment} onClose={() => setNativePayment(null)} />
+      <SupportPaymentDialog payment={supportPayment} onClose={() => setSupportPayment(null)} />
     </main>
   );
 }
