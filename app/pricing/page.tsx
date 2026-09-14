@@ -66,6 +66,17 @@ type PaymentMethodInfo = {
   desc: string;
 };
 
+type RechargeOrderStatusPayload = {
+  order_no: string;
+  status: string;
+  paid: boolean;
+  points: number;
+  amount: string;
+  payment_method: string;
+  paid_at?: string;
+  user: DakeUser;
+};
+
 const navItems = [
   ["去水印", "/watermark-remover"],
   ["万能生图", "/image-editor"],
@@ -129,11 +140,6 @@ const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
 function formatPoints(points: number) {
   return new Intl.NumberFormat("en-US").format(points);
-}
-
-function isMobileBrowser() {
-  if (typeof window === "undefined") return false;
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent);
 }
 
 function qrImageUrl(value: string) {
@@ -280,7 +286,61 @@ function PaymentDialog({
   );
 }
 
-function WechatNativeDialog({ payment, onClose }: { payment: PackagePayload["payment"] | null; onClose: () => void }) {
+function WechatNativeDialog({
+  payment,
+  token,
+  onClose,
+  onPaid
+}: {
+  payment: PackagePayload["payment"] | null;
+  token: string | null;
+  onClose: () => void;
+  onPaid: (payload: RechargeOrderStatusPayload) => void;
+}) {
+  const [statusText, setStatusText] = useState("正在等待扫码支付结果");
+
+  useEffect(() => {
+    if (!payment?.code_url || !payment.order_no || !token) return;
+    let stopped = false;
+
+    async function checkOrderStatus() {
+      try {
+        const response = await fetch(`${apiBase}/api/packages/order-status?order_no=${encodeURIComponent(payment.order_no)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const result = await readApi<RechargeOrderStatusPayload>(response);
+        if (stopped) return;
+        if (result.data.paid) {
+          setStatusText("支付成功，正在跳转...");
+          onPaid(result.data);
+          window.setTimeout(() => {
+            window.location.href = `/payment-success?type=recharge&order_no=${encodeURIComponent(result.data.order_no)}`;
+          }, 500);
+          return;
+        }
+        if (result.data.status === "failed") {
+          setStatusText("订单已失效，请关闭后重新发起支付");
+          return;
+        }
+        setStatusText("正在等待扫码支付结果");
+      } catch {
+        if (!stopped) {
+          setStatusText("正在等待扫码支付结果");
+        }
+      }
+    }
+
+    void checkOrderStatus();
+    const timer = window.setInterval(() => {
+      void checkOrderStatus();
+    }, 3000);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [payment?.code_url, payment?.order_no, token, onPaid]);
+
   if (!payment?.code_url) return null;
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-[#101827]/45 px-4 backdrop-blur-sm">
@@ -292,6 +352,10 @@ function WechatNativeDialog({ payment, onClose }: { payment: PackagePayload["pay
         <p className="mt-2 text-sm font-semibold text-[#697080]">请使用微信扫描二维码完成充值</p>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="mx-auto mt-5 h-[260px] w-[260px] rounded-[8px] border border-[#e5e7eb] bg-white p-2" src={qrImageUrl(payment.code_url)} alt="微信支付二维码" />
+        <div className="mt-4 flex items-center justify-center gap-2 text-sm font-bold text-[#697080]">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#d6dbe1] border-t-[#101827]" />
+          {statusText}
+        </div>
         <a className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[#101827] px-5 text-sm font-black text-white" href={payment.code_url}>
           打开微信支付
         </a>
@@ -387,6 +451,12 @@ function PricingContent() {
     setError("");
   }
 
+  const handleWechatPaid = useCallback((order: RechargeOrderStatusPayload) => {
+    window.localStorage.setItem("dake_user", JSON.stringify(order.user));
+    notifyAuthChanged();
+    setPayload((current) => current ? { ...current, user: order.user, has_recharged: true } : current);
+  }, []);
+
   async function confirmPayment() {
     if (!token || !selectedPackage || payingKey || paymentRedirecting) return;
     setPayingKey(selectedPackage.key);
@@ -414,14 +484,8 @@ function PricingContent() {
         return;
       }
       if (payment?.mode === "native" && payment.code_url) {
-        if (isMobileBrowser()) {
-          redirectStarted = true;
-          setPaymentRedirecting(true);
-          window.location.href = payment.code_url;
-        } else {
-          setNativePayment(payment);
-          setSelectedPackage(null);
-        }
+        setNativePayment(payment);
+        setSelectedPackage(null);
         return;
       }
       if (payment?.pay_url) {
@@ -552,7 +616,12 @@ function PricingContent() {
         onMethodChange={setPaymentMethod}
         onConfirm={() => void confirmPayment()}
       />
-      <WechatNativeDialog payment={nativePayment} onClose={() => setNativePayment(null)} />
+      <WechatNativeDialog
+        payment={nativePayment}
+        token={token}
+        onClose={() => setNativePayment(null)}
+        onPaid={handleWechatPaid}
+      />
       <SupportPaymentDialog payment={supportPayment} onClose={() => setSupportPayment(null)} />
     </main>
   );
